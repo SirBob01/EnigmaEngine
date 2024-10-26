@@ -64,7 +64,7 @@ namespace Dynamo::Graphics {
          * @param count
          */
         template <typename T>
-        void add_vertex_attribute(T *array) {
+        void add_vertex_attribute(const T *array) {
             attributes.emplace_back();
             AttributeBuffer &buffer = attributes.back();
             buffer.resize(vertex_count * sizeof(T));
@@ -79,7 +79,7 @@ namespace Dynamo::Graphics {
          * @param count
          */
         template <typename T>
-        void add_instance_attribute(T *array) {
+        void add_instance_attribute(const T *array) {
             attributes.emplace_back();
             AttributeBuffer &buffer = attributes.back();
             buffer.resize(instance_count * sizeof(T));

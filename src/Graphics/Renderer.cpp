@@ -1,6 +1,6 @@
 #include <Graphics/Renderer.hpp>
 
-namespace Dynamo::Graphics::Vulkan {
+namespace Dynamo::Graphics {
     Renderer::Renderer(const Display &display, const std::string &root_asset_directory) : _display(display) {
         _instance = VkInstance_create(_display);
 #ifdef DYN_DEBUG
@@ -227,4 +227,4 @@ namespace Dynamo::Graphics::Vulkan {
             VkResult_log("Present Render", present_result);
         }
     }
-} // namespace Dynamo::Graphics::Vulkan
+} // namespace Dynamo::Graphics

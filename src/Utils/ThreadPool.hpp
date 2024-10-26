@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <future>
-#include <memory>
 #include <mutex>
 #include <queue>
 #include <thread>

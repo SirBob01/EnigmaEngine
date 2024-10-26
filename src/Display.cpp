@@ -22,9 +22,9 @@ namespace Dynamo {
 
         glfwMakeContextCurrent(_window);
 
-        _vsync = true;
+        _input = Input(_window);
         _title = title;
-        _input = std::make_unique<Input>(_window);
+        _vsync = false;
     }
 
     Display::~Display() {
@@ -54,7 +54,7 @@ namespace Dynamo {
 
     const std::string &Display::get_title() const { return _title; }
 
-    Input &Display::input() { return *_input; }
+    Input &Display::input() { return _input; }
 
     Vec2 Display::get_window_size() const {
         int width, height;

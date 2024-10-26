@@ -22,8 +22,6 @@
 #include <Math/Vec2.hpp>
 #include <Math/Vec3.hpp>
 #include <Math/Vectorize.hpp>
-#include <Object/Object.hpp>
-#include <Object/Ref.hpp>
 #include <Sound/Buffer.hpp>
 #include <Sound/DSP/Convolver.hpp>
 #include <Sound/DSP/HRTF.hpp>

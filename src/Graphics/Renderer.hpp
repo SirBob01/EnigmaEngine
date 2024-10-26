@@ -15,7 +15,9 @@
 #include <Graphics/Vulkan/Swapchain.hpp>
 #include <Math/Color.hpp>
 
-namespace Dynamo::Graphics::Vulkan {
+namespace Dynamo::Graphics {
+    using namespace Vulkan;
+
     /**
      * @brief Vulkan-powered 3D Renderer.
      *
@@ -129,4 +131,4 @@ namespace Dynamo::Graphics::Vulkan {
          */
         void render();
     };
-} // namespace Dynamo::Graphics::Vulkan
+} // namespace Dynamo::Graphics

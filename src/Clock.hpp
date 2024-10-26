@@ -30,10 +30,6 @@ namespace Dynamo {
         unsigned long long _frames;
 
       public:
-        /**
-         * @brief Initialize the clock.
-         *
-         */
         Clock();
 
         /**

@@ -1,7 +1,6 @@
 #pragma once
 #define GLFW_INCLUDE_VULKAN
 
-#include <memory>
 #include <string>
 
 #include <GLFW/glfw3.h>
@@ -18,20 +17,17 @@ namespace Dynamo {
     class Display {
         GLFWmonitor *_monitor;
         GLFWwindow *_window;
+        Input _input;
         std::string _title;
         bool _vsync;
 
-        std::unique_ptr<Input> _input;
-
       public:
-        /**
-         * @brief Initialize the display.
-         *
-         * @param title
-         * @param window_width
-         * @param window_height
-         */
         Display(const std::string &title, unsigned window_width, unsigned window_height);
+
+        /**
+         * @brief Clean up window resources.
+         *
+         */
         ~Display();
 
         /**
