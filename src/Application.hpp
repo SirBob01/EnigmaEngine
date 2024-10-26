@@ -44,13 +44,12 @@ namespace Dynamo {
      *
      */
     class Application {
-        std::unique_ptr<Display> _display;
-        std::unique_ptr<Graphics::Vulkan::Renderer> _renderer;
-        std::unique_ptr<Sound::Jukebox> _jukebox;
+        Display _display;
+        Clock _clock;
+        Graphics::Renderer _renderer;
+        Sound::Jukebox _jukebox;
 
         std::thread _audio_thread;
-
-        Clock _clock;
 
       public:
         /**
@@ -93,9 +92,9 @@ namespace Dynamo {
         /**
          * @brief Get the renderer.
          *
-         * @return Graphics::Vulkan::Renderer&
+         * @return Graphics::Renderer&
          */
-        Graphics::Vulkan::Renderer &renderer();
+        Graphics::Renderer &renderer();
 
         /**
          * @brief Get the audio engine.

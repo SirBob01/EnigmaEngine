@@ -8,7 +8,7 @@ namespace Dynamo {
         // On cursor motion
         auto cursor_cb = [](GLFWwindow *window, double x, double y) {
             void *userptr = glfwGetWindowUserPointer(window);
-            InputState *state = static_cast<InputState *>(userptr);
+            State *state = static_cast<State *>(userptr);
             state->mouse_position.x = x;
             state->mouse_position.y = y;
         };
@@ -17,7 +17,7 @@ namespace Dynamo {
         // On scroll
         auto scroll_cb = [](GLFWwindow *window, double x, double y) {
             void *userptr = glfwGetWindowUserPointer(window);
-            InputState *state = static_cast<InputState *>(userptr);
+            State *state = static_cast<State *>(userptr);
             state->scroll_offset.x = x;
             state->scroll_offset.y = y;
         };
@@ -26,7 +26,7 @@ namespace Dynamo {
         // On key state change
         auto key_cb = [](GLFWwindow *window, int key, int scancode, int action, int mods) {
             void *userptr = glfwGetWindowUserPointer(window);
-            InputState *state = static_cast<InputState *>(userptr);
+            State *state = static_cast<State *>(userptr);
             switch (action) {
             case GLFW_PRESS:
                 state->key_pressed.insert(static_cast<KeyCode>(key));
@@ -43,7 +43,7 @@ namespace Dynamo {
         // On mouse button state change
         auto click_cb = [](GLFWwindow *window, int button, int action, int mods) {
             void *userptr = glfwGetWindowUserPointer(window);
-            InputState *state = static_cast<InputState *>(userptr);
+            State *state = static_cast<State *>(userptr);
             switch (action) {
             case GLFW_PRESS:
                 state->mouse_pressed.insert(static_cast<MouseCode>(button));

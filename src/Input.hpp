@@ -151,7 +151,7 @@ namespace Dynamo {
     class Input {
         GLFWwindow *_window;
 
-        struct InputState {
+        struct State {
             Vec2 mouse_position;
             Vec2 scroll_offset;
 
@@ -161,15 +161,11 @@ namespace Dynamo {
             std::unordered_set<MouseCode> mouse_pressed;
             std::unordered_set<MouseCode> mouse_released;
         };
-        InputState _state;
+        inline static State _state = {};
 
       public:
-        /**
-         * @brief Construct a new Input object
-         *
-         * @param window
-         */
         Input(GLFWwindow *window);
+        Input() = default;
 
         /**
          * @brief Get the current mouse position
