@@ -38,10 +38,10 @@
 #include <Sound/Source.hpp>
 #include <Utils/Allocator.hpp>
 #include <Utils/Bits.hpp>
-#include <Utils/IdGenerator.hpp>
 #include <Utils/Log.hpp>
 #include <Utils/Random.hpp>
 #include <Utils/RingBuffer.hpp>
+#include <Utils/SparseArray.hpp>
 #include <Utils/SparseSet.hpp>
 #include <Utils/ThreadPool.hpp>
 #include <Utils/TypeId.hpp>
