@@ -215,18 +215,16 @@ namespace Dynamo::Graphics::Vulkan {
         spvReflectDestroyShaderModule(&reflection);
         Log::info("");
 
-        // Register the new shader
-        Shader shader = IdGenerator<Shader>::generate();
-        _modules.emplace(shader, module);
-        return shader;
+        // Register the shader module
+        return _modules.insert(module);
     }
 
-    const ShaderModule &ShaderSet::get(Shader shader) const { return _modules.at(shader); }
+    const ShaderModule &ShaderSet::get(Shader shader) const { return _modules.get(shader); }
 
     void ShaderSet::destroy(Shader shader) {
-        ShaderModule &module = _modules.at(shader);
+        ShaderModule &module = _modules.get(shader);
         vkDestroyShaderModule(_device, module.handle, nullptr);
-        _modules.erase(shader);
+        _modules.remove(shader);
     }
 
     void ShaderSet::destroy() {
@@ -235,9 +233,7 @@ namespace Dynamo::Graphics::Vulkan {
         }
         _descriptor_layouts.clear();
 
-        for (const auto &[key, module] : _modules) {
-            vkDestroyShaderModule(_device, module.handle, nullptr);
-        }
+        _modules.foreach ([&](ShaderModule &module) { vkDestroyShaderModule(_device, module.handle, nullptr); });
         _modules.clear();
     }
 } // namespace Dynamo::Graphics::Vulkan

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <vector>
 
-#include <Utils/IdGenerator.hpp>
 #include <Utils/Log.hpp>
 
 namespace Dynamo {
@@ -66,7 +65,7 @@ namespace Dynamo {
          * @return int Index position of the value (-1 on failure).
          */
         inline int find(Id id) const {
-            uintptr_t key = IdGenerator<Id>::key(id);
+            uintptr_t key = reinterpret_cast<uintptr_t>(id);
             if (key >= _sparse.size()) {
                 return -1;
             }
@@ -101,7 +100,7 @@ namespace Dynamo {
         template <typename... Params>
         inline void insert(Id id, Params... args) {
             // Resize the sparse array or remove the existing item
-            uintptr_t key = IdGenerator<Id>::key(id);
+            uintptr_t key = reinterpret_cast<uintptr_t>(id);
             if (key >= _sparse.size()) {
                 _sparse.resize((key + 1) * 2, -1);
             } else if (_sparse[key] != -1) {
@@ -127,7 +126,7 @@ namespace Dynamo {
          * @param id Unique identifier of the object to be removed.
          */
         inline void remove(Id id) {
-            uintptr_t key = IdGenerator<Id>::key(id);
+            uintptr_t key = reinterpret_cast<uintptr_t>(id);
             if (key >= _sparse.size()) {
                 return;
             }
@@ -140,7 +139,7 @@ namespace Dynamo {
             }
 
             // Swap last element of dense and pool array to maintain contiguity
-            uintptr_t new_key = IdGenerator<Id>::key(_dense.back());
+            uintptr_t new_key = reinterpret_cast<uintptr_t>(_dense.back());
             std::swap(_pool.back(), _pool[index]);
             _pool.pop_back();
 

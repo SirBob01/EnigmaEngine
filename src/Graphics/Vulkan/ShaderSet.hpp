@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Shader.hpp>
+#include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
     /**
@@ -71,7 +72,7 @@ namespace Dynamo::Graphics::Vulkan {
      */
     class ShaderSet {
         VkDevice _device;
-        std::unordered_map<Shader, ShaderModule> _modules;
+        SparseArray<Shader, ShaderModule> _modules;
         std::unordered_map<DescriptorLayoutKey, VkDescriptorSetLayout, DescriptorLayoutKey::Hash> _descriptor_layouts;
 
         /**

@@ -2,15 +2,16 @@
 #include <catch2/catch_test_macros.hpp>
 
 DYN_DEFINE_ID_TYPE(Id);
+uintptr_t ids = 0;
 
 using CharSet = Dynamo::SparseSet<Id, char>;
 
 TEST_CASE("SparseSet []", "[SparseSet]") {
     CharSet set;
 
-    set.insert(Dynamo::IdGenerator<Id>::generate(), 'a');
-    set.insert(Dynamo::IdGenerator<Id>::generate(), 'b');
-    set.insert(Dynamo::IdGenerator<Id>::generate(), 'c');
+    set.insert(reinterpret_cast<Id>(ids++), 'a');
+    set.insert(reinterpret_cast<Id>(ids++), 'b');
+    set.insert(reinterpret_cast<Id>(ids++), 'c');
 
     REQUIRE(set[0] == 'a');
     REQUIRE(set[1] == 'b');
@@ -20,9 +21,9 @@ TEST_CASE("SparseSet []", "[SparseSet]") {
 TEST_CASE("SparseSet const []", "[SparseSet]") {
     CharSet set;
 
-    set.insert(Dynamo::IdGenerator<Id>::generate(), 'a');
-    set.insert(Dynamo::IdGenerator<Id>::generate(), 'b');
-    set.insert(Dynamo::IdGenerator<Id>::generate(), 'c');
+    set.insert(reinterpret_cast<Id>(ids++), 'a');
+    set.insert(reinterpret_cast<Id>(ids++), 'b');
+    set.insert(reinterpret_cast<Id>(ids++), 'c');
 
     const CharSet &const_set = set;
 
@@ -34,9 +35,9 @@ TEST_CASE("SparseSet const []", "[SparseSet]") {
 TEST_CASE("SparseSet get", "[SparseSet]") {
     CharSet set;
 
-    Id a = Dynamo::IdGenerator<Id>::generate();
-    Id b = Dynamo::IdGenerator<Id>::generate();
-    Id c = Dynamo::IdGenerator<Id>::generate();
+    Id a = reinterpret_cast<Id>(ids++);
+    Id b = reinterpret_cast<Id>(ids++);
+    Id c = reinterpret_cast<Id>(ids++);
 
     set.insert(a, 'a');
     set.insert(b, 'b');
@@ -50,9 +51,9 @@ TEST_CASE("SparseSet get", "[SparseSet]") {
 TEST_CASE("SparseSet const get", "[SparseSet]") {
     CharSet set;
 
-    Id a = Dynamo::IdGenerator<Id>::generate();
-    Id b = Dynamo::IdGenerator<Id>::generate();
-    Id c = Dynamo::IdGenerator<Id>::generate();
+    Id a = reinterpret_cast<Id>(ids++);
+    Id b = reinterpret_cast<Id>(ids++);
+    Id c = reinterpret_cast<Id>(ids++);
 
     set.insert(a, 'a');
     set.insert(b, 'b');
@@ -68,15 +69,15 @@ TEST_CASE("SparseSet const get", "[SparseSet]") {
 TEST_CASE("SparseSet insert", "[SparseSet]") {
     CharSet set;
 
-    Id a = Dynamo::IdGenerator<Id>::generate();
+    Id a = reinterpret_cast<Id>(ids++);
     set.insert(a, 'a');
     REQUIRE(set.get(a) == 'a');
 
-    Id b = Dynamo::IdGenerator<Id>::generate();
+    Id b = reinterpret_cast<Id>(ids++);
     set.insert(b, 'b');
     REQUIRE(set.get(b) == 'b');
 
-    Id c = Dynamo::IdGenerator<Id>::generate();
+    Id c = reinterpret_cast<Id>(ids++);
     set.insert(c, 'c');
     REQUIRE(set.get(c) == 'c');
 
@@ -87,7 +88,7 @@ TEST_CASE("SparseSet insert", "[SparseSet]") {
 TEST_CASE("SparseSet remove", "[SparseSet]") {
     CharSet set;
 
-    Id a = Dynamo::IdGenerator<Id>::generate();
+    Id a = reinterpret_cast<Id>(ids++);
     set.insert(a, 'a');
     REQUIRE(set.find(a) == 0);
     REQUIRE(set.get(a) == 'a');
@@ -104,15 +105,15 @@ TEST_CASE("SparseSet remove", "[SparseSet]") {
 TEST_CASE("SparseSet clear", "[SparseSet]") {
     CharSet set;
 
-    Id a = Dynamo::IdGenerator<Id>::generate();
+    Id a = reinterpret_cast<Id>(ids++);
     set.insert(a, 'a');
     REQUIRE(set.get(a) == 'a');
 
-    Id b = Dynamo::IdGenerator<Id>::generate();
+    Id b = reinterpret_cast<Id>(ids++);
     set.insert(b, 'b');
     REQUIRE(set.get(b) == 'b');
 
-    Id c = Dynamo::IdGenerator<Id>::generate();
+    Id c = reinterpret_cast<Id>(ids++);
     set.insert(c, 'c');
     REQUIRE(set.get(c) == 'c');
 
@@ -137,20 +138,20 @@ TEST_CASE("SparseSet clear", "[SparseSet]") {
 TEST_CASE("SparseSet foreach", "[SparseSet]") {
     CharSet set;
 
-    Id a = Dynamo::IdGenerator<Id>::generate();
+    Id a = reinterpret_cast<Id>(ids++);
     set.insert(a, 'a');
     REQUIRE(set.get(a) == 'a');
 
-    Id b = Dynamo::IdGenerator<Id>::generate();
+    Id b = reinterpret_cast<Id>(ids++);
     set.insert(b, 'b');
     REQUIRE(set.get(b) == 'b');
 
-    Id c = Dynamo::IdGenerator<Id>::generate();
+    Id c = reinterpret_cast<Id>(ids++);
     set.insert(c, 'c');
     REQUIRE(set.get(c) == 'c');
 
     set.remove(a);
-    Id d = Dynamo::IdGenerator<Id>::generate();
+    Id d = reinterpret_cast<Id>(ids++);
     set.insert(d, 'd');
 
     REQUIRE(set.size() == 3);

@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include <Utils/IdGenerator.hpp>
+#include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics {
     /**
