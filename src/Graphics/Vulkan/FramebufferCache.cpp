@@ -9,9 +9,14 @@ namespace Dynamo::Graphics::Vulkan {
         if (framebuffer_it != _cache.end()) {
             return framebuffer_it->second;
         }
-
-        VkFramebuffer framebuffer =
-            VkFramebuffer_create(_device, settings.renderpass, settings.extent, &settings.view, 1, 1);
+        unsigned view_count = 1;
+        unsigned layer_count = 1;
+        VkFramebuffer framebuffer = VkFramebuffer_create(_device,
+                                                         settings.renderpass,
+                                                         settings.extent,
+                                                         &settings.view,
+                                                         view_count,
+                                                         layer_count);
         _cache.emplace(settings, framebuffer);
         return framebuffer;
     }

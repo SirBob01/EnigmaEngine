@@ -779,13 +779,41 @@ namespace Dynamo::Graphics::Vulkan {
                                   VkCommandBufferLevel level,
                                   VkCommandBuffer *dst,
                                   unsigned count) {
-        VkCommandBufferAllocateInfo alloc_info{};
+        VkCommandBufferAllocateInfo alloc_info = {};
         alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         alloc_info.commandPool = pool;
         alloc_info.level = level;
         alloc_info.commandBufferCount = count;
 
         VkResult_log("Allocate Command Buffers", vkAllocateCommandBuffers(device, &alloc_info, dst));
+    }
+
+    VkDescriptorPool
+    VkDescriptorPool_create(VkDevice device, VkDescriptorPoolSize *sizes, unsigned size_count, unsigned max_sets) {
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.poolSizeCount = size_count;
+        pool_info.pPoolSizes = sizes;
+        pool_info.maxSets = max_sets;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+
+        VkDescriptorPool pool;
+        VkResult_log("Create Descriptor Pool", vkCreateDescriptorPool(device, &pool_info, nullptr, &pool));
+        return pool;
+    }
+
+    void VkDescriptorSet_allocate(VkDevice device,
+                                  VkDescriptorPool pool,
+                                  const VkDescriptorSetLayout *layouts,
+                                  VkDescriptorSet *dst,
+                                  unsigned count) {
+        VkDescriptorSetAllocateInfo alloc_info = {};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = pool;
+        alloc_info.descriptorSetCount = count;
+        alloc_info.pSetLayouts = layouts;
+
+        VkResult_log("Allocate Descriptor Sets", vkAllocateDescriptorSets(device, &alloc_info, dst));
     }
 
     VkFence VkFence_create(VkDevice device) {

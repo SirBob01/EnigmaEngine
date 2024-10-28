@@ -21,10 +21,11 @@ namespace Dynamo {
         }
 
         glfwMakeContextCurrent(_window);
+        glfwSwapInterval(1);
 
         _input = Input(_window);
         _title = title;
-        _vsync = false;
+        _vsync = true;
     }
 
     Display::~Display() {
@@ -98,14 +99,7 @@ namespace Dynamo {
         }
     }
 
-    void Display::set_vsync(bool flag) {
-        _vsync = flag;
-        if (_vsync) {
-            glfwSwapInterval(1);
-        } else {
-            glfwSwapInterval(0);
-        }
-    }
+    void Display::set_vsync(bool flag) { _vsync = flag; }
 
     void Display::set_title(const std::string &title) {
         _title = title;

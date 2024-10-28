@@ -1,4 +1,4 @@
-#include <Graphics/Vulkan/ShaderSet.hpp>
+#include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Utils.hpp>
 #include <Utils/Log.hpp>
 #include <shaderc/shaderc.hpp>
@@ -6,10 +6,12 @@
 namespace Dynamo::Graphics::Vulkan {
     constexpr char INSTANCE_VAR_PREFIX[] = "instance";
 
-    ShaderSet::ShaderSet(VkDevice device) : _device(device) {}
+    ShaderRegistry::ShaderRegistry(VkDevice device) : _device(device) {}
 
-    std::vector<uint32_t>
-    ShaderSet::compile(const std::string &name, const std::string &code, VkShaderStageFlagBits stage, bool optimized) {
+    std::vector<uint32_t> ShaderRegistry::compile(const std::string &name,
+                                                  const std::string &code,
+                                                  VkShaderStageFlagBits stage,
+                                                  bool optimized) {
         shaderc::Compiler compiler;
         shaderc::CompileOptions options;
         if (optimized) {
@@ -48,7 +50,7 @@ namespace Dynamo::Graphics::Vulkan {
         return {module.cbegin(), module.cend()};
     }
 
-    void ShaderSet::reflect_vertex_input(ShaderModule &module, SpvReflectShaderModule reflection) {
+    void ShaderRegistry::reflect_vertex_input(ShaderModule &module, SpvReflectShaderModule reflection) {
         unsigned count = 0;
         SpvReflectResult result = spvReflectEnumerateInputVariables(&reflection, &count, NULL);
         DYN_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
@@ -93,7 +95,7 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    void ShaderSet::reflect_descriptor_sets(ShaderModule &module, SpvReflectShaderModule reflection) {
+    void ShaderRegistry::reflect_descriptor_sets(ShaderModule &module, SpvReflectShaderModule reflection) {
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&reflection, &count, NULL);
         DYN_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
@@ -104,50 +106,62 @@ namespace Dynamo::Graphics::Vulkan {
 
         for (unsigned i = 0; i < count; i++) {
             const SpvReflectDescriptorSet &refl_set = *sets[i];
-            Log::info("* Descriptor Set: {}", refl_set.set);
+            std::sort(refl_set.bindings, refl_set.bindings + refl_set.binding_count, [](auto *a, auto *b) {
+                return a->binding < b->binding;
+            });
 
-            std::vector<VkDescriptorSetLayoutBinding> bindings;
+            DescriptorSet descriptor_set;
+            DescriptorLayoutKey layout_key;
             for (unsigned j = 0; j < refl_set.binding_count; j++) {
+                // Update descriptor layout key
                 const SpvReflectDescriptorBinding &refl_binding = *refl_set.bindings[j];
-                VkDescriptorSetLayoutBinding binding;
-                binding.binding = refl_binding.binding;
-                binding.pImmutableSamplers = nullptr;
-                binding.stageFlags = static_cast<VkShaderStageFlagBits>(reflection.shader_stage);
-                binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
-                binding.descriptorCount = 1;
+                VkDescriptorSetLayoutBinding layout_binding;
+                layout_binding.binding = refl_binding.binding;
+                layout_binding.pImmutableSamplers = nullptr;
+                layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(reflection.shader_stage);
+                layout_binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
+                layout_binding.descriptorCount = 1;
                 for (unsigned k = 0; k < refl_binding.array.dims_count; k++) {
-                    binding.descriptorCount *= refl_binding.array.dims[k];
+                    layout_binding.descriptorCount *= refl_binding.array.dims[k];
                 }
-                bindings.push_back(binding);
+                layout_key.bindings.push_back(layout_binding);
 
-                Log::info(" -> Binding (name: {}, binding: {}, count: {}, type: {}, stage: {})",
-                          refl_binding.name,
-                          binding.binding,
-                          binding.descriptorCount,
-                          VkDescriptorType_string(binding.descriptorType),
-                          VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(binding.stageFlags)));
+                // Add descriptor metadata to reflection
+                DescriptorBinding descriptor_binding;
+                descriptor_binding.name = refl_binding.name;
+                descriptor_binding.set = refl_binding.set;
+                descriptor_binding.binding = refl_binding.binding;
+                descriptor_binding.descriptor_count = layout_binding.descriptorCount;
+                descriptor_binding.size = refl_binding.block.size;
+                descriptor_set.bindings.push_back(descriptor_binding);
+
+                Log::info("* Descriptor (name: {}, set: {}, binding: {}, size: {}, count: {}, type: {}, stage: {})",
+                          descriptor_binding.name,
+                          descriptor_binding.set,
+                          descriptor_binding.binding,
+                          descriptor_binding.size,
+                          descriptor_binding.descriptor_count,
+                          VkDescriptorType_string(layout_binding.descriptorType),
+                          VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(layout_binding.stageFlags)));
             }
 
-            // Sort the bindings
-            std::sort(bindings.begin(), bindings.end(), [](auto &a, auto &b) { return a.binding < b.binding; });
-
-            // Build descriptor set layout
-            DescriptorLayoutKey key;
-            key.bindings = bindings;
-
-            VkDescriptorSetLayout layout;
-            auto layout_it = _descriptor_layouts.find(key);
+            // Build descriptor layout
+            auto layout_it = _descriptor_layouts.find(layout_key);
             if (layout_it != _descriptor_layouts.end()) {
-                layout = layout_it->second;
+                descriptor_set.layout = layout_it->second;
             } else {
-                layout = VkDescriptorSetLayout_create(_device, bindings.data(), bindings.size());
-                _descriptor_layouts.emplace(key, layout);
+                VkDescriptorSetLayoutBinding *bindings = layout_key.bindings.data();
+                unsigned binding_count = layout_key.bindings.size();
+                descriptor_set.layout = VkDescriptorSetLayout_create(_device, bindings, binding_count);
+                _descriptor_layouts.emplace(layout_key, descriptor_set.layout);
             }
-            module.descriptor_layouts.push_back(layout);
+
+            // Register the set
+            module.descriptor_sets.push_back(descriptor_set);
         }
     }
 
-    void ShaderSet::reflect_push_constants(ShaderModule &module, SpvReflectShaderModule reflection) {
+    void ShaderRegistry::reflect_push_constants(ShaderModule &module, SpvReflectShaderModule reflection) {
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumeratePushConstantBlocks(&reflection, &count, NULL);
         DYN_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
@@ -159,21 +173,22 @@ namespace Dynamo::Graphics::Vulkan {
         for (unsigned i = 0; i < count; i++) {
             SpvReflectBlockVariable &block = *push_constants[i];
 
-            VkPushConstantRange range;
-            range.offset = block.offset;
-            range.size = block.size;
-            range.stageFlags = static_cast<VkShaderStageFlagBits>(reflection.shader_stage);
+            PushConstant push_constant;
+            push_constant.name = block.name;
+            push_constant.range.offset = block.offset;
+            push_constant.range.size = block.size;
+            push_constant.range.stageFlags = static_cast<VkShaderStageFlagBits>(reflection.shader_stage);
 
-            module.push_constant_ranges.push_back(range);
+            module.push_constants.push_back(push_constant);
             Log::info("* Push Constant Range (name: {}, offset: {}, size: {}, stage: {})",
-                      block.name,
-                      range.offset,
-                      range.size,
-                      VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(range.stageFlags)));
+                      push_constant.name,
+                      push_constant.range.offset,
+                      push_constant.range.size,
+                      VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(push_constant.range.stageFlags)));
         }
     }
 
-    Shader ShaderSet::build(const ShaderDescriptor &descriptor) {
+    Shader ShaderRegistry::build(const ShaderDescriptor &descriptor) {
         // Determine shader stage
         VkShaderStageFlagBits stage;
         switch (descriptor.stage) {
@@ -204,8 +219,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Reflection
         SpvReflectShaderModule reflection;
-        unsigned bytecode_length = bytecode.size() * sizeof(uint32_t);
-        SpvReflectResult result = spvReflectCreateShaderModule(bytecode_length, bytecode.data(), &reflection);
+        SpvReflectResult result = spvReflectCreateShaderModule(bytecode.size() * 4, bytecode.data(), &reflection);
         DYN_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
 
         Log::info("Shader {} reflection:", descriptor.name);
@@ -219,15 +233,15 @@ namespace Dynamo::Graphics::Vulkan {
         return _modules.insert(module);
     }
 
-    const ShaderModule &ShaderSet::get(Shader shader) const { return _modules.get(shader); }
+    const ShaderModule &ShaderRegistry::get(Shader shader) const { return _modules.get(shader); }
 
-    void ShaderSet::destroy(Shader shader) {
+    void ShaderRegistry::destroy(Shader shader) {
         ShaderModule &module = _modules.get(shader);
         vkDestroyShaderModule(_device, module.handle, nullptr);
         _modules.remove(shader);
     }
 
-    void ShaderSet::destroy() {
+    void ShaderRegistry::destroy() {
         for (const auto &[key, layout] : _descriptor_layouts) {
             vkDestroyDescriptorSetLayout(_device, layout, nullptr);
         }

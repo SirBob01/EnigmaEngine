@@ -102,7 +102,7 @@ namespace Dynamo::Graphics::Vulkan {
          * @param block_offset
          * @param length
          */
-        void host_write(const char *src, unsigned block_offset, unsigned length);
+        void host_write(const void *src, unsigned block_offset, unsigned length);
 
         /**
          * @brief Read from the buffer.
@@ -111,7 +111,7 @@ namespace Dynamo::Graphics::Vulkan {
          * @param block_offset
          * @param length
          */
-        void host_read(char *dst, unsigned block_offset, unsigned length);
+        void host_read(void *dst, unsigned block_offset, unsigned length);
 
         /**
          * @brief Copy contents to another buffer.

@@ -16,6 +16,7 @@ namespace Dynamo::Graphics::Vulkan {
     struct MeshAllocation {
         std::vector<VkDeviceSize> attribute_offsets;
         std::vector<VkBuffer> buffers;
+        VkBuffer index_buffer;
         unsigned index_offset;
         unsigned index_count;
         unsigned vertex_count;
@@ -24,13 +25,21 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     /**
-     * @brief Mesh set.
+     * @brief Mesh registry.
      *
      */
-    class MeshSet {
+    class MeshRegistry {
+        VkDevice _device;
+        Buffer _vertex;
+        Buffer _index;
+        Buffer _staging;
+
         SparseArray<Mesh, MeshAllocation> _allocations;
 
       public:
+        MeshRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
+        MeshRegistry() = default;
+
         /**
          * @brief Get a mesh allocation.
          *
@@ -43,21 +52,21 @@ namespace Dynamo::Graphics::Vulkan {
          * @brief Upload a mesh descriptor to VRAM.
          *
          * @param descriptor
-         * @param vertex_buffer
-         * @param index_buffer
-         * @param staging_buffer
          * @return Mesh
          */
-        Mesh
-        build(const MeshDescriptor &descriptor, Buffer &vertex_buffer, Buffer &index_buffer, Buffer &staging_buffer);
+        Mesh build(const MeshDescriptor &descriptor);
 
         /**
          * @brief Free all allocated buffers for a mesh.
          *
          * @param mesh
-         * @param vertex_buffer
-         * @param index_buffer
          */
-        void free(Mesh mesh, Buffer &vertex_buffer, Buffer &index_buffer);
+        void destroy(Mesh mesh);
+
+        /**
+         * @brief Destroy mesh allocation buffers.
+         *
+         */
+        void destroy();
     };
 } // namespace Dynamo::Graphics::Vulkan

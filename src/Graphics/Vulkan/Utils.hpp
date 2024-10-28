@@ -238,12 +238,38 @@ namespace Dynamo::Graphics::Vulkan {
      * @param level
      * @param dst
      * @param count
-     * @return std::vector<VkCommandBuffer>
      */
     void VkCommandBuffer_allocate(VkDevice device,
                                   VkCommandPool pool,
                                   VkCommandBufferLevel level,
                                   VkCommandBuffer *dst,
+                                  unsigned count);
+
+    /**
+     * @brief Create a Vulkan descriptor pool.
+     *
+     * @param device
+     * @param sizes
+     * @param size_count
+     * @param max_sets
+     * @return VkDescriptorPool
+     */
+    VkDescriptorPool
+    VkDescriptorPool_create(VkDevice device, VkDescriptorPoolSize *sizes, unsigned size_count, unsigned max_sets);
+
+    /**
+     * @brief Allocate Vulkan descriptor sets from a pool.
+     *
+     * @param device
+     * @param pool
+     * @param layouts
+     * @param dst
+     * @param count
+     */
+    void VkDescriptorSet_allocate(VkDevice device,
+                                  VkDescriptorPool pool,
+                                  const VkDescriptorSetLayout *layouts,
+                                  VkDescriptorSet *dst,
                                   unsigned count);
 
     /**
