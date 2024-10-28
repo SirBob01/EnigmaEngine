@@ -56,7 +56,6 @@ namespace Dynamo::Graphics {
         // * Depth-stencil buffer
         // * Texture system -> Similar to shaders / meshes, generate a handle and return
         // * Draw-to-texture -> overload render(), render(Texture texture)
-        // * Group draws by renderpass / pipeline / pipeline layout
 
         /**
          * @brief Rebuild the swapchain.

@@ -25,7 +25,7 @@ namespace Dynamo {
 
     void VirtualMemory::free(unsigned block_offset) { _allocator.free(block_offset); }
 
-    void *VirtualMemory::get(unsigned block_offset) {
+    void *VirtualMemory::get_mapped(unsigned block_offset) {
         DYN_ASSERT(_allocator.is_reserved(block_offset));
         return _buffer.data() + block_offset;
     }

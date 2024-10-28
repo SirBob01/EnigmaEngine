@@ -96,22 +96,12 @@ namespace Dynamo::Graphics::Vulkan {
         void resize(unsigned size);
 
         /**
-         * @brief Write to the buffer.
+         * @brief Get a pointer to mapped memory.
          *
-         * @param src
          * @param block_offset
-         * @param length
+         * @return void*
          */
-        void host_write(const void *src, unsigned block_offset, unsigned length);
-
-        /**
-         * @brief Read from the buffer.
-         *
-         * @param dst
-         * @param block_offset
-         * @param length
-         */
-        void host_read(void *dst, unsigned block_offset, unsigned length);
+        void *get_mapped(unsigned block_offset);
 
         /**
          * @brief Copy contents to another buffer.

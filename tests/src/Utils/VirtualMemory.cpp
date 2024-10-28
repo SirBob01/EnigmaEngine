@@ -8,7 +8,7 @@ TEST_CASE("VirtualMemory reserve", "[VirtualMemory]") {
 
     REQUIRE(offset == 4);
     REQUIRE(memory.size(offset) == 12);
-    REQUIRE(memory.get(offset) != nullptr);
+    REQUIRE(memory.get_mapped(offset) != nullptr);
 }
 
 TEST_CASE("VirtualMemory free", "[VirtualMemory]") {
@@ -17,7 +17,7 @@ TEST_CASE("VirtualMemory free", "[VirtualMemory]") {
 
     REQUIRE(offset == 0);
     REQUIRE(memory.size(offset) == 3);
-    REQUIRE(memory.get(offset) != nullptr);
+    REQUIRE(memory.get_mapped(offset) != nullptr);
 
     memory.free(offset);
     REQUIRE_THROWS(memory.size(offset));
