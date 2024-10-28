@@ -42,10 +42,10 @@ namespace Dynamo {
         void free(unsigned block_offset);
 
         /**
-         * @brief Get the pointer to an allocated block.
+         * @brief Get the pointer to mapped memory.
          *
          * @return void*
          */
-        void *get(unsigned block_offset);
+        void *get_mapped(unsigned block_offset);
     };
 } // namespace Dynamo

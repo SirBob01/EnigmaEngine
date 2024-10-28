@@ -203,11 +203,9 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Aggregate descriptor layouts
         std::vector<VkDescriptorSetLayout> descriptor_layouts;
-        descriptor_layouts.reserve(vertex_module.descriptor_sets.size() + fragment_module.descriptor_sets.size());
         for (const DescriptorSet &set : vertex_module.descriptor_sets) {
             descriptor_layouts.push_back(set.layout);
 
-            // TODO: What if we have duplicate set layouts? Need to get unique descriptor layouts to build sets
             DescriptorAllocation allocation = uniforms.allocate(set);
             instance.descriptor_sets.push_back(allocation.set);
             for (Uniform uniform : allocation.uniforms) {
@@ -217,7 +215,7 @@ namespace Dynamo::Graphics::Vulkan {
         for (const DescriptorSet &set : fragment_module.descriptor_sets) {
             descriptor_layouts.push_back(set.layout);
 
-            // TODO: Same problem here, we need to aggregate unique layouts
+            // TODO: What if we have duplicate set layouts? Need to get unique descriptor layouts to build sets
             DescriptorAllocation allocation = uniforms.allocate(set);
             instance.descriptor_sets.push_back(allocation.set);
             for (Uniform uniform : allocation.uniforms) {
@@ -227,7 +225,6 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Aggregate push constant ranges
         std::vector<VkPushConstantRange> push_constant_ranges;
-        push_constant_ranges.reserve(vertex_module.push_constants.size() + fragment_module.push_constants.size());
         for (const PushConstant &push_constant : vertex_module.push_constants) {
             push_constant_ranges.push_back(push_constant.range);
 

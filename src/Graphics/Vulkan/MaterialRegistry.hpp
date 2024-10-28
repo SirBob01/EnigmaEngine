@@ -39,8 +39,8 @@ namespace Dynamo::Graphics::Vulkan {
                 size_t hash0 = std::hash<bool>{}(settings.clear_color);
                 size_t hash1 = std::hash<bool>{}(settings.clear_depth);
 
-                size_t hash2 = std::hash<unsigned>{}(settings.color_format);
-                size_t hash3 = std::hash<unsigned>{}(settings.depth_format);
+                size_t hash2 = std::hash<VkFormat>{}(settings.color_format);
+                size_t hash3 = std::hash<VkFormat>{}(settings.depth_format);
 
                 size_t hash4 = std::hash<unsigned>{}(settings.sample_count);
 
@@ -84,12 +84,12 @@ namespace Dynamo::Graphics::Vulkan {
             inline size_t operator()(const PipelineLayoutSettings &settings) const {
                 size_t hash_base = 0;
                 for (unsigned i = 0; i < settings.descriptor_layout_count; i++) {
-                    VkDescriptorSetLayout &layout = settings.descriptor_layouts[i];
-                    size_t hash = std::hash<const void *>{}(layout);
+                    VkDescriptorSetLayout layout = settings.descriptor_layouts[i];
+                    size_t hash = std::hash<VkDescriptorSetLayout>{}(layout);
                     hash_base ^= (hash << i);
                 }
                 for (unsigned i = 0; i < settings.push_constant_range_count; i++) {
-                    VkPushConstantRange &range = settings.push_constant_ranges[i];
+                    const VkPushConstantRange &range = settings.push_constant_ranges[i];
                     size_t hash0 = std::hash<unsigned>{}(range.size);
                     size_t hash1 = std::hash<unsigned>{}(range.offset);
                     size_t hash2 = std::hash<unsigned>{}(range.stageFlags);
@@ -123,9 +123,9 @@ namespace Dynamo::Graphics::Vulkan {
 
         struct Hash {
             inline size_t operator()(const GraphicsPipelineSettings &settings) const {
-                size_t hash0 = std::hash<unsigned>{}(settings.topology);
-                size_t hash1 = std::hash<unsigned>{}(settings.polygon_mode);
-                size_t hash2 = std::hash<unsigned>{}(settings.cull_mode);
+                size_t hash0 = std::hash<VkPrimitiveTopology>{}(settings.topology);
+                size_t hash1 = std::hash<VkPolygonMode>{}(settings.polygon_mode);
+                size_t hash2 = std::hash<VkCullModeFlags>{}(settings.cull_mode);
                 size_t hash3 = std::hash<VkShaderModule>{}(settings.vertex.handle);
                 size_t hash4 = std::hash<VkShaderModule>{}(settings.fragment.handle);
                 size_t hash5 = std::hash<VkRenderPass>{}(settings.renderpass);

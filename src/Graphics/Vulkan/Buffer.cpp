@@ -67,8 +67,6 @@ namespace Dynamo::Graphics::Vulkan {
     unsigned Buffer::size(unsigned block_offset) const { return _allocator.size(block_offset); }
 
     void Buffer::resize(unsigned size) {
-        // !!TODO!!: Do not destroy old buffer, as this will invalidate handles for all active resources.
-
         // Do not resize if target is less than the current capacity
         if (size < _allocator.capacity()) return;
 
@@ -98,14 +96,9 @@ namespace Dynamo::Graphics::Vulkan {
         _allocator.grow(size);
     }
 
-    void Buffer::host_write(const void *src, unsigned block_offset, unsigned length) {
-        DYN_ASSERT(_allocator.is_reserved(block_offset));
-        std::memcpy(_mapped + block_offset, src, length);
-    }
-
-    void Buffer::host_read(void *dst, unsigned block_offset, unsigned length) {
-        DYN_ASSERT(_allocator.is_reserved(block_offset));
-        std::memcpy(dst, _mapped + block_offset, length);
+    void *Buffer::get_mapped(unsigned block_offset) {
+        DYN_ASSERT(_allocator.is_reserved(block_offset) && _mapped != nullptr);
+        return _mapped + block_offset;
     }
 
     void Buffer::copy_to(Buffer &dst, VkBufferCopy *regions, unsigned region_count) {

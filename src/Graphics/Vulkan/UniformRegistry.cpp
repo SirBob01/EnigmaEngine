@@ -6,8 +6,6 @@ namespace Dynamo::Graphics::Vulkan {
         _device(device) {
         std::array<VkDescriptorPoolSize, 1> sizes;
         sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
-        // TODO: Maximum number of allocations?
         sizes[0].descriptorCount = 1024;
 
         _pool = VkDescriptorPool_create(device, sizes.data(), sizes.size(), 1024);
@@ -28,6 +26,7 @@ namespace Dynamo::Graphics::Vulkan {
         DescriptorAllocation allocation;
 
         // TODO: Recycle descriptor sets that are not used
+        // TODO: Need to allocate a new descriptor pool if this fails
         VkDescriptorSet_allocate(_device, _pool, &set.layout, &allocation.set, 1);
 
         // Map descriptors to buffer
@@ -82,20 +81,22 @@ namespace Dynamo::Graphics::Vulkan {
     const UniformVariable &UniformRegistry::get(Uniform uniform) { return _variables.get(uniform); }
 
     void *UniformRegistry::get_push_constant_data(unsigned block_offset) {
-        return _push_constant_buffer.get(block_offset);
+        return _push_constant_buffer.get_mapped(block_offset);
     }
 
     void UniformRegistry::write(Uniform uniform, void *data) {
         const UniformVariable &var = _variables.get(uniform);
+        void *ptr = nullptr;
         switch (var.type) {
         case UniformVariableType::Descriptor:
-            _uniform_buffer.host_write(data, var.block_offset, var.block_size);
+            ptr = _uniform_buffer.get_mapped(var.block_offset);
             break;
         case UniformVariableType::PushConstant:
-            void *ptr = _push_constant_buffer.get(var.block_offset);
-            std::memcpy(ptr, data, var.block_size);
+            ptr = _push_constant_buffer.get_mapped(var.block_offset);
             break;
         }
+        DYN_ASSERT(ptr != nullptr);
+        std::memcpy(ptr, data, var.block_size);
     }
 
     void UniformRegistry::free(Uniform uniform) {

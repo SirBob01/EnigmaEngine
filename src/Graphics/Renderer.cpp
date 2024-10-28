@@ -136,6 +136,12 @@ namespace Dynamo::Graphics {
 
         VkResult_log("Begin Command Recording", vkBeginCommandBuffer(frame.command_buffer, &begin_info));
 
+        // Group models by material and geometry
+        std::sort(_models.begin(), _models.end(), [](const Model &a, const Model &b) {
+            return (a.material < b.material) || (a.mesh < b.mesh);
+        });
+
+        // Submit commands
         VkViewport viewport;
         viewport.minDepth = 0;
         viewport.maxDepth = 1;
@@ -151,30 +157,60 @@ namespace Dynamo::Graphics {
         scissor.offset.y = 0;
         vkCmdSetScissor(frame.command_buffer, 0, 1, &scissor);
 
-        // Iterate over models and draw
+        VkRenderPass prev_renderpass = VK_NULL_HANDLE;
+        VkPipeline prev_pipeline = VK_NULL_HANDLE;
+        Mesh prev_mesh = reinterpret_cast<Mesh>(-1);
         for (Model model : _models) {
-            MaterialInstance &material = _materials.get(model.material);
+            const MeshAllocation &mesh = _meshes.get(model.mesh);
+            const MaterialInstance &material = _materials.get(model.material);
 
-            FramebufferSettings framebuffer_settings;
-            framebuffer_settings.view = _swapchain.views[image_index];
-            framebuffer_settings.extent = _swapchain.extent;
-            framebuffer_settings.renderpass = material.renderpass;
-            VkFramebuffer framebuffer = _framebuffers.get(framebuffer_settings);
+            // Rebind renderpass if changed
+            if (prev_renderpass != material.renderpass) {
+                FramebufferSettings framebuffer_settings;
+                framebuffer_settings.view = _swapchain.views[image_index];
+                framebuffer_settings.extent = _swapchain.extent;
+                framebuffer_settings.renderpass = material.renderpass;
+                VkFramebuffer framebuffer = _framebuffers.get(framebuffer_settings);
 
-            VkRenderPassBeginInfo renderpass_begin_info = {};
-            renderpass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderpass_begin_info.renderPass = material.renderpass;
-            renderpass_begin_info.renderArea.extent = _swapchain.extent;
-            renderpass_begin_info.renderArea.offset.x = 0;
-            renderpass_begin_info.renderArea.offset.y = 0;
-            renderpass_begin_info.clearValueCount = 1;
-            renderpass_begin_info.pClearValues = &_clear;
-            renderpass_begin_info.framebuffer = framebuffer;
+                VkRenderPassBeginInfo renderpass_begin_info = {};
+                renderpass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+                renderpass_begin_info.renderPass = material.renderpass;
+                renderpass_begin_info.renderArea.extent = _swapchain.extent;
+                renderpass_begin_info.renderArea.offset.x = 0;
+                renderpass_begin_info.renderArea.offset.y = 0;
+                renderpass_begin_info.clearValueCount = 1;
+                renderpass_begin_info.pClearValues = &_clear;
+                renderpass_begin_info.framebuffer = framebuffer;
 
-            vkCmdBeginRenderPass(frame.command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
+                // End the previous renderpass if active
+                if (prev_renderpass != VK_NULL_HANDLE) {
+                    vkCmdEndRenderPass(frame.command_buffer);
+                }
+                prev_renderpass = material.renderpass;
+                vkCmdBeginRenderPass(frame.command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+            }
+
+            // Rebind pipeline if changed
+            if (prev_pipeline != material.pipeline) {
+                prev_pipeline = material.pipeline;
+                vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
+            }
+
+            // Rebind mesh if changed
+            if (prev_mesh != model.mesh) {
+                prev_mesh = model.mesh;
+                vkCmdBindVertexBuffers(frame.command_buffer,
+                                       0,
+                                       mesh.attribute_offsets.size(),
+                                       mesh.buffers.data(),
+                                       mesh.attribute_offsets.data());
+                if (mesh.index_type != VK_INDEX_TYPE_NONE_KHR) {
+                    vkCmdBindIndexBuffer(frame.command_buffer, mesh.index_buffer, mesh.index_offset, mesh.index_type);
+                }
+            }
 
             // Bind descriptor sets
+            // TODO: Avoid costly descriptor set rebinding
             if (material.descriptor_sets.size()) {
                 vkCmdBindDescriptorSets(frame.command_buffer,
                                         VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -199,23 +235,19 @@ namespace Dynamo::Graphics {
                                    data);
             }
 
-            // Bind mesh and draw
-            MeshAllocation &mesh = _meshes.get(model.mesh);
-            vkCmdBindVertexBuffers(frame.command_buffer,
-                                   0,
-                                   mesh.attribute_offsets.size(),
-                                   mesh.buffers.data(),
-                                   mesh.attribute_offsets.data());
+            // Draw
             if (mesh.index_type != VK_INDEX_TYPE_NONE_KHR) {
-                vkCmdBindIndexBuffer(frame.command_buffer, mesh.index_buffer, mesh.index_offset, mesh.index_type);
                 vkCmdDrawIndexed(frame.command_buffer, mesh.index_count, mesh.instance_count, 0, 0, 0);
             } else {
                 vkCmdDraw(frame.command_buffer, mesh.vertex_count, mesh.instance_count, 0, 0);
             }
-            vkCmdEndRenderPass(frame.command_buffer);
         }
         _models.clear();
 
+        // End last renderpass
+        if (prev_renderpass != VK_NULL_HANDLE) {
+            vkCmdEndRenderPass(frame.command_buffer);
+        }
         VkResult_log("End Command Buffer", vkEndCommandBuffer(frame.command_buffer));
 
         VkQueue queue;

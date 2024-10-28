@@ -42,7 +42,9 @@ namespace Dynamo::Graphics::Vulkan {
             region.size = attribute.size();
 
             unsigned staging_offset = _staging.reserve(attribute.size());
-            _staging.host_write(attribute.data(), staging_offset, attribute.size());
+            void *ptr = _staging.get_mapped(staging_offset);
+            std::memcpy(ptr, attribute.data(), attribute.size());
+
             _staging.copy_to(_vertex, &region, 1);
             _staging.free(staging_offset);
         }
@@ -50,11 +52,11 @@ namespace Dynamo::Graphics::Vulkan {
         // Write index array, if available
         switch (descriptor.index_type) {
         case IndexType::U16: {
-            std::vector<uint16_t> short_indices;
+            std::vector<uint16_t> u16_indices;
             for (unsigned index : descriptor.indices) {
-                short_indices.push_back(index);
+                u16_indices.push_back(index);
             }
-            unsigned size = short_indices.size() * sizeof(short_indices[0]);
+            unsigned size = u16_indices.size() * sizeof(u16_indices[0]);
             allocation.index_offset = _index.reserve(size);
 
             VkBufferCopy region;
@@ -63,7 +65,9 @@ namespace Dynamo::Graphics::Vulkan {
             region.size = size;
 
             unsigned staging_offset = _staging.reserve(size);
-            _staging.host_write(short_indices.data(), staging_offset, size);
+            void *ptr = _staging.get_mapped(staging_offset);
+            std::memcpy(ptr, u16_indices.data(), size);
+
             _staging.copy_to(_index, &region, 1);
             _staging.free(staging_offset);
 
@@ -71,11 +75,11 @@ namespace Dynamo::Graphics::Vulkan {
             break;
         }
         case IndexType::U32: {
-            std::vector<uint32_t> short_indices;
+            std::vector<uint32_t> u32_indices;
             for (unsigned index : descriptor.indices) {
-                short_indices.push_back(index);
+                u32_indices.push_back(index);
             }
-            unsigned size = short_indices.size() * sizeof(short_indices[0]);
+            unsigned size = u32_indices.size() * sizeof(u32_indices[0]);
             allocation.index_offset = _index.reserve(size);
 
             VkBufferCopy region;
@@ -84,7 +88,9 @@ namespace Dynamo::Graphics::Vulkan {
             region.size = size;
 
             unsigned staging_offset = _staging.reserve(size);
-            _staging.host_write(short_indices.data(), staging_offset, size);
+            void *ptr = _staging.get_mapped(staging_offset);
+            std::memcpy(ptr, u32_indices.data(), size);
+
             _staging.copy_to(_index, &region, 1);
             _staging.free(staging_offset);
 

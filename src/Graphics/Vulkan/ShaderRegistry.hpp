@@ -42,9 +42,9 @@ namespace Dynamo::Graphics::Vulkan {
                 for (const VkDescriptorSetLayoutBinding &binding : layout.bindings) {
                     size_t hash0 = std::hash<unsigned>{}(binding.binding);
                     size_t hash1 = std::hash<unsigned>{}(binding.descriptorCount);
-                    size_t hash2 = std::hash<unsigned>{}(binding.descriptorType);
-                    size_t hash3 = std::hash<unsigned>{}(binding.stageFlags);
-                    size_t hash4 = std::hash<const void *>{}(binding.pImmutableSamplers);
+                    size_t hash2 = std::hash<VkDescriptorType>{}(binding.descriptorType);
+                    size_t hash3 = std::hash<VkShaderStageFlags>{}(binding.stageFlags);
+                    size_t hash4 = std::hash<const VkSampler *>{}(binding.pImmutableSamplers);
 
                     size_t binding_hash = hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4);
                     hash_base ^= binding_hash;
