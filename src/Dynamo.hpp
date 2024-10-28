@@ -45,3 +45,4 @@
 #include <Utils/SparseSet.hpp>
 #include <Utils/ThreadPool.hpp>
 #include <Utils/TypeId.hpp>
+#include <Utils/VirtualMemory.hpp>

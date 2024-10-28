@@ -12,7 +12,7 @@
 
 namespace Dynamo::Graphics::Vulkan {
     /**
-     * @brief Descriptor set layout bindings.
+     * @brief Descriptor set layout key.
      *
      */
     struct DescriptorLayoutKey {
@@ -55,6 +55,36 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     /**
+     * @brief Reflected descriptor binding.
+     *
+     */
+    struct DescriptorBinding {
+        std::string name;
+        unsigned set;
+        unsigned binding;
+        unsigned descriptor_count;
+        unsigned size;
+    };
+
+    /**
+     * @brief Descriptor set.
+     *
+     */
+    struct DescriptorSet {
+        VkDescriptorSetLayout layout;
+        std::vector<DescriptorBinding> bindings;
+    };
+
+    /**
+     * @brief Push constant.
+     *
+     */
+    struct PushConstant {
+        std::string name;
+        VkPushConstantRange range;
+    };
+
+    /**
      * @brief Shader module instance.
      *
      */
@@ -62,15 +92,15 @@ namespace Dynamo::Graphics::Vulkan {
         VkShaderModule handle;
         std::vector<VkVertexInputBindingDescription> bindings;
         std::vector<VkVertexInputAttributeDescription> attributes;
-        std::vector<VkDescriptorSetLayout> descriptor_layouts;
-        std::vector<VkPushConstantRange> push_constant_ranges;
+        std::vector<DescriptorSet> descriptor_sets;
+        std::vector<PushConstant> push_constants;
     };
 
     /**
-     * @brief Shader set.
+     * @brief Shader registry.
      *
      */
-    class ShaderSet {
+    class ShaderRegistry {
         VkDevice _device;
         SparseArray<Shader, ShaderModule> _modules;
         std::unordered_map<DescriptorLayoutKey, VkDescriptorSetLayout, DescriptorLayoutKey::Hash> _descriptor_layouts;
@@ -112,8 +142,8 @@ namespace Dynamo::Graphics::Vulkan {
         void reflect_push_constants(ShaderModule &module, SpvReflectShaderModule reflection);
 
       public:
-        ShaderSet(VkDevice device);
-        ShaderSet() = default;
+        ShaderRegistry(VkDevice device);
+        ShaderRegistry() = default;
 
         /**
          * @brief Get a shader module.

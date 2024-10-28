@@ -19,33 +19,15 @@ namespace Dynamo::Graphics {
         _graphics_pool = VkCommandPool_create(_device, _physical.graphics_queues);
         _transfer_pool = VkCommandPool_create(_device, _physical.transfer_queues);
 
-        // Main buffers
-        std::array<VkCommandBuffer, 3> transfer_buffers;
-        VkCommandBuffer_allocate(_device, _transfer_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, transfer_buffers.data(), 3);
-        _vertex_buffer = Buffer(_device,
-                                _physical,
-                                transfer_buffers[0],
-                                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        _index_buffer = Buffer(_device,
-                               _physical,
-                               transfer_buffers[1],
-                               VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        _staging_buffer = Buffer(_device,
-                                 _physical,
-                                 transfer_buffers[2],
-                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
-                                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        // Vulkan object caches
-        _shaders = ShaderSet(_device);
+        // Vulkan object registries
+        _meshes = MeshRegistry(_device, _physical, _transfer_pool);
+        _shaders = ShaderRegistry(_device);
         _materials = MaterialRegistry(_device, root_asset_directory + "/vulkan_cache.bin");
+        _uniforms = UniformRegistry(_device, _physical, _transfer_pool);
         _framebuffers = FramebufferCache(_device);
 
         // Frame contexts
-        _frame_contexts = FrameContextList<3>(_device, _graphics_pool);
+        _frame_contexts = FrameContextList(_device, _graphics_pool);
 
         // Color fill clear value
         _clear.color.float32[0] = 0;
@@ -63,12 +45,11 @@ namespace Dynamo::Graphics {
 
         // High-level objects
         _frame_contexts.destroy();
-        _vertex_buffer.destroy();
-        _index_buffer.destroy();
-        _staging_buffer.destroy();
         _framebuffers.destroy();
+        _uniforms.destroy();
         _materials.destroy();
         _shaders.destroy();
+        _meshes.destroy();
         _swapchain.destroy();
 
         // Vulkan core objects
@@ -98,17 +79,34 @@ namespace Dynamo::Graphics {
         _clear.color.float32[3] = color.a;
     }
 
-    Mesh Renderer::build_mesh(const MeshDescriptor &descriptor) {
-        return _meshes.build(descriptor, _vertex_buffer, _index_buffer, _staging_buffer);
-    }
+    Mesh Renderer::build_mesh(const MeshDescriptor &descriptor) { return _meshes.build(descriptor); }
 
-    void Renderer::destroy_mesh(Mesh mesh) { _meshes.free(mesh, _vertex_buffer, _index_buffer); }
-
-    void Renderer::draw(const Model &model) { _models.push_back(model); }
+    void Renderer::destroy_mesh(Mesh mesh) { _meshes.destroy(mesh); }
 
     Shader Renderer::build_shader(const ShaderDescriptor &descriptor) { return _shaders.build(descriptor); }
 
     void Renderer::destroy_shader(Shader shader) { _shaders.destroy(shader); }
+
+    Material Renderer::build_material(const MaterialDescriptor &descriptor) {
+        return _materials.build(descriptor, _swapchain, _shaders, _uniforms);
+    }
+
+    void Renderer::destroy_material(Material material) { _materials.destroy(material, _uniforms); }
+
+    std::optional<Uniform> Renderer::get_uniform(Material material, const std::string &name) {
+        MaterialInstance &instance = _materials.get(material);
+        for (Uniform uniform : instance.uniforms) {
+            const UniformVariable &var = _uniforms.get(uniform);
+            if (var.name == name) {
+                return uniform;
+            }
+        }
+        return {};
+    }
+
+    void Renderer::write_uniform(Uniform uniform, void *data) { _uniforms.write(uniform, data); }
+
+    void Renderer::draw(const Model &model) { _models.push_back(model); }
 
     void Renderer::render() {
         const FrameContext &frame = _frame_contexts.next();
@@ -155,17 +153,17 @@ namespace Dynamo::Graphics {
 
         // Iterate over models and draw
         for (Model model : _models) {
-            MaterialInstance pipeline_pass = _materials.get(model.material, _swapchain, _shaders);
+            MaterialInstance &material = _materials.get(model.material);
 
             FramebufferSettings framebuffer_settings;
             framebuffer_settings.view = _swapchain.views[image_index];
             framebuffer_settings.extent = _swapchain.extent;
-            framebuffer_settings.renderpass = pipeline_pass.renderpass;
+            framebuffer_settings.renderpass = material.renderpass;
             VkFramebuffer framebuffer = _framebuffers.get(framebuffer_settings);
 
             VkRenderPassBeginInfo renderpass_begin_info = {};
             renderpass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderpass_begin_info.renderPass = pipeline_pass.renderpass;
+            renderpass_begin_info.renderPass = material.renderpass;
             renderpass_begin_info.renderArea.extent = _swapchain.extent;
             renderpass_begin_info.renderArea.offset.x = 0;
             renderpass_begin_info.renderArea.offset.y = 0;
@@ -174,8 +172,34 @@ namespace Dynamo::Graphics {
             renderpass_begin_info.framebuffer = framebuffer;
 
             vkCmdBeginRenderPass(frame.command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pass.pipeline);
+            vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
 
+            // Bind descriptor sets
+            if (material.descriptor_sets.size()) {
+                vkCmdBindDescriptorSets(frame.command_buffer,
+                                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                        material.layout,
+                                        0,
+                                        material.descriptor_sets.size(),
+                                        material.descriptor_sets.data(),
+                                        0,
+                                        nullptr);
+            }
+
+            // Push constants
+            for (unsigned i = 0; i < material.push_constant_ranges.size(); i++) {
+                VkPushConstantRange range = material.push_constant_ranges[i];
+                unsigned offset = material.push_constant_offsets[i];
+                void *data = _uniforms.get_push_constant_data(offset);
+                vkCmdPushConstants(frame.command_buffer,
+                                   material.layout,
+                                   range.stageFlags,
+                                   range.offset,
+                                   range.size,
+                                   data);
+            }
+
+            // Bind mesh and draw
             MeshAllocation &mesh = _meshes.get(model.mesh);
             vkCmdBindVertexBuffers(frame.command_buffer,
                                    0,
@@ -183,7 +207,7 @@ namespace Dynamo::Graphics {
                                    mesh.buffers.data(),
                                    mesh.attribute_offsets.data());
             if (mesh.index_type != VK_INDEX_TYPE_NONE_KHR) {
-                vkCmdBindIndexBuffer(frame.command_buffer, _index_buffer.handle(), mesh.index_offset, mesh.index_type);
+                vkCmdBindIndexBuffer(frame.command_buffer, mesh.index_buffer, mesh.index_offset, mesh.index_type);
                 vkCmdDrawIndexed(frame.command_buffer, mesh.index_count, mesh.instance_count, 0, 0, 0);
             } else {
                 vkCmdDraw(frame.command_buffer, mesh.vertex_count, mesh.instance_count, 0, 0);

@@ -7,8 +7,12 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Graphics/Material.hpp>
-#include <Graphics/Vulkan/ShaderSet.hpp>
+#include <Graphics/Vulkan/Buffer.hpp>
+#include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
+#include <Graphics/Vulkan/UniformRegistry.hpp>
+#include <Graphics/Vulkan/Utils.hpp>
+#include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
     /**
@@ -133,13 +137,17 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     /**
-     * @brief Allocated Vulkan objects associated with a material.
+     * @brief Material instance with references to allocated Vulkan resources.
      *
      */
     struct MaterialInstance {
         VkRenderPass renderpass;
         VkPipelineLayout layout;
         VkPipeline pipeline;
+        std::vector<Uniform> uniforms;
+        std::vector<VkDescriptorSet> descriptor_sets;
+        std::vector<VkPushConstantRange> push_constant_ranges;
+        std::vector<unsigned> push_constant_offsets;
     };
 
     /**
@@ -155,7 +163,7 @@ namespace Dynamo::Graphics::Vulkan {
         std::unordered_map<PipelineLayoutSettings, VkPipelineLayout, PipelineLayoutSettings::Hash> _layouts;
         std::unordered_map<GraphicsPipelineSettings, VkPipeline, GraphicsPipelineSettings::Hash> _pipelines;
 
-        std::unordered_map<Material, MaterialInstance> _instances;
+        SparseArray<Material, MaterialInstance> _instances;
 
         /**
          * @brief Create a Vulkan render pass.
@@ -173,29 +181,41 @@ namespace Dynamo::Graphics::Vulkan {
          */
         VkPipeline build_pipeline(const GraphicsPipelineSettings &settings) const;
 
-        /**
-         * @brief Build the material instance.
-         *
-         * @param material
-         * @param swapchain
-         * @param shaders
-         * @return MaterialInstance
-         */
-        MaterialInstance build(const Material &material, const Swapchain &swapchain, const ShaderSet &shaders);
-
       public:
         MaterialRegistry(VkDevice device, const std::string &filename);
         MaterialRegistry() = default;
 
         /**
-         * @brief Build a Vulkan material instance.
+         * @brief Build a material and its resources.
          *
-         * @param material
+         * @param descriptor
          * @param swapchain
          * @param shaders
+         * @param uniforms
          * @return MaterialInstance
          */
-        MaterialInstance get(const Material &material, const Swapchain &swapchain, const ShaderSet &shaders);
+        Material build(const MaterialDescriptor &descriptor,
+                       const Swapchain &swapchain,
+                       const ShaderRegistry &shaders,
+                       UniformRegistry &uniforms);
+
+        /**
+         * @brief Get a material instance.
+         *
+         * @param material
+         * @return MaterialInstance&
+         */
+        MaterialInstance &get(Material material);
+
+        /**
+         * @brief Destroy a material instance.
+         *
+         * Pipeline, layout, and render pass are preserved, only uniforms are freed.
+         *
+         * @param material
+         * @param uniforms
+         */
+        void destroy(Material material, UniformRegistry &uniforms);
 
         /**
          * @brief Destroy all Vulkan resources.

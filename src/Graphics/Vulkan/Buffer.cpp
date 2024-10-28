@@ -37,6 +37,7 @@ namespace Dynamo::Graphics::Vulkan {
             VkResult_log(
                 "Map Device Memory",
                 vkMapMemory(_device, memory, 0, _allocator.capacity(), 0, reinterpret_cast<void **>(&_mapped)));
+            DYN_ASSERT(_mapped != nullptr);
         } else {
             _mapped = nullptr;
         }
@@ -66,6 +67,8 @@ namespace Dynamo::Graphics::Vulkan {
     unsigned Buffer::size(unsigned block_offset) const { return _allocator.size(block_offset); }
 
     void Buffer::resize(unsigned size) {
+        // !!TODO!!: Do not destroy old buffer, as this will invalidate handles for all active resources.
+
         // Do not resize if target is less than the current capacity
         if (size < _allocator.capacity()) return;
 
@@ -95,19 +98,14 @@ namespace Dynamo::Graphics::Vulkan {
         _allocator.grow(size);
     }
 
-    void Buffer::host_write(const char *src, unsigned block_offset, unsigned length) {
-        if (!_allocator.is_reserved(block_offset)) {
-            Log::error("Invalid Vulkan buffer offset write");
-        }
-        std::copy(src, src + length, _mapped + block_offset);
+    void Buffer::host_write(const void *src, unsigned block_offset, unsigned length) {
+        DYN_ASSERT(_allocator.is_reserved(block_offset));
+        std::memcpy(_mapped + block_offset, src, length);
     }
 
-    void Buffer::host_read(char *dst, unsigned block_offset, unsigned length) {
-        if (!_allocator.is_reserved(block_offset)) {
-            Log::error("Invalid Vulkan buffer offset read");
-        }
-        char *src = _mapped + block_offset;
-        std::copy(src, src + length, dst);
+    void Buffer::host_read(void *dst, unsigned block_offset, unsigned length) {
+        DYN_ASSERT(_allocator.is_reserved(block_offset));
+        std::memcpy(dst, _mapped + block_offset, length);
     }
 
     void Buffer::copy_to(Buffer &dst, VkBufferCopy *regions, unsigned region_count) {

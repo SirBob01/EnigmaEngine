@@ -193,28 +193,56 @@ namespace Dynamo::Graphics::Vulkan {
         return pipeline;
     }
 
-    MaterialInstance
-    MaterialRegistry::build(const Material &material, const Swapchain &swapchain, const ShaderSet &shaders) {
+    Material MaterialRegistry::build(const MaterialDescriptor &descriptor,
+                                     const Swapchain &swapchain,
+                                     const ShaderRegistry &shaders,
+                                     UniformRegistry &uniforms) {
         MaterialInstance instance;
-        const ShaderModule &vertex_module = shaders.get(material.vertex);
-        const ShaderModule &fragment_module = shaders.get(material.fragment);
+        const ShaderModule &vertex_module = shaders.get(descriptor.vertex);
+        const ShaderModule &fragment_module = shaders.get(descriptor.fragment);
 
         // Aggregate descriptor layouts
         std::vector<VkDescriptorSetLayout> descriptor_layouts;
-        for (const VkDescriptorSetLayout &layout : vertex_module.descriptor_layouts) {
-            descriptor_layouts.push_back(layout);
+        descriptor_layouts.reserve(vertex_module.descriptor_sets.size() + fragment_module.descriptor_sets.size());
+        for (const DescriptorSet &set : vertex_module.descriptor_sets) {
+            descriptor_layouts.push_back(set.layout);
+
+            // TODO: What if we have duplicate set layouts? Need to get unique descriptor layouts to build sets
+            DescriptorAllocation allocation = uniforms.allocate(set);
+            instance.descriptor_sets.push_back(allocation.set);
+            for (Uniform uniform : allocation.uniforms) {
+                instance.uniforms.push_back(uniform);
+            }
         }
-        for (const VkDescriptorSetLayout &layout : fragment_module.descriptor_layouts) {
-            descriptor_layouts.push_back(layout);
+        for (const DescriptorSet &set : fragment_module.descriptor_sets) {
+            descriptor_layouts.push_back(set.layout);
+
+            // TODO: Same problem here, we need to aggregate unique layouts
+            DescriptorAllocation allocation = uniforms.allocate(set);
+            instance.descriptor_sets.push_back(allocation.set);
+            for (Uniform uniform : allocation.uniforms) {
+                instance.uniforms.push_back(uniform);
+            }
         }
 
         // Aggregate push constant ranges
         std::vector<VkPushConstantRange> push_constant_ranges;
-        for (const VkPushConstantRange &range : vertex_module.push_constant_ranges) {
-            push_constant_ranges.push_back(range);
+        push_constant_ranges.reserve(vertex_module.push_constants.size() + fragment_module.push_constants.size());
+        for (const PushConstant &push_constant : vertex_module.push_constants) {
+            push_constant_ranges.push_back(push_constant.range);
+
+            PushConstantAllocation allocation = uniforms.allocate(push_constant);
+            instance.push_constant_ranges.push_back(allocation.range);
+            instance.push_constant_offsets.push_back(allocation.block_offset);
+            instance.uniforms.push_back(allocation.uniform);
         }
-        for (const VkPushConstantRange &range : fragment_module.push_constant_ranges) {
-            push_constant_ranges.push_back(range);
+        for (const PushConstant &push_constant : fragment_module.push_constants) {
+            push_constant_ranges.push_back(push_constant.range);
+
+            PushConstantAllocation allocation = uniforms.allocate(push_constant);
+            instance.push_constant_ranges.push_back(allocation.range);
+            instance.push_constant_offsets.push_back(allocation.block_offset);
+            instance.uniforms.push_back(allocation.uniform);
         }
 
         // Build pipeline layout
@@ -251,9 +279,9 @@ namespace Dynamo::Graphics::Vulkan {
         GraphicsPipelineSettings pipeline_settings;
         pipeline_settings.vertex = vertex_module;
         pipeline_settings.fragment = fragment_module;
-        pipeline_settings.topology = convert_topology(material.topology);
-        pipeline_settings.cull_mode = convert_cull(material.cull);
-        pipeline_settings.polygon_mode = convert_fill(material.fill);
+        pipeline_settings.topology = convert_topology(descriptor.topology);
+        pipeline_settings.cull_mode = convert_cull(descriptor.cull);
+        pipeline_settings.polygon_mode = convert_fill(descriptor.fill);
         pipeline_settings.renderpass = instance.renderpass;
         pipeline_settings.layout = instance.layout;
         auto pipeline_it = _pipelines.find(pipeline_settings);
@@ -264,20 +292,17 @@ namespace Dynamo::Graphics::Vulkan {
             _pipelines.emplace(pipeline_settings, instance.pipeline);
         }
 
-        return instance;
+        return _instances.insert(instance);
     }
 
-    MaterialInstance
-    MaterialRegistry::get(const Material &material, const Swapchain &swapchain, const ShaderSet &shaders) {
-        // It's expensive to index into pipeline/layout/pass caches every time, so check if dirty before rebuilding
-        auto instance_it = _instances.find(material);
-        if (instance_it != _instances.end()) {
-            return instance_it->second;
-        }
+    MaterialInstance &MaterialRegistry::get(Material material) { return _instances.get(material); }
 
-        MaterialInstance instance = build(material, swapchain, shaders);
-        _instances.emplace(material, instance);
-        return instance;
+    void MaterialRegistry::destroy(Material material, UniformRegistry &uniforms) {
+        MaterialInstance &instance = _instances.get(material);
+        for (Uniform uniform : instance.uniforms) {
+            uniforms.free(uniform);
+        }
+        _instances.get(material);
     }
 
     void MaterialRegistry::destroy() {

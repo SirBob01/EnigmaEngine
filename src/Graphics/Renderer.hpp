@@ -9,10 +9,11 @@
 #include <Graphics/Vulkan/FrameContext.hpp>
 #include <Graphics/Vulkan/FramebufferCache.hpp>
 #include <Graphics/Vulkan/MaterialRegistry.hpp>
-#include <Graphics/Vulkan/MeshSet.hpp>
+#include <Graphics/Vulkan/MeshRegistry.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
-#include <Graphics/Vulkan/ShaderSet.hpp>
+#include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
+#include <Graphics/Vulkan/UniformRegistry.hpp>
 #include <Math/Color.hpp>
 
 namespace Dynamo::Graphics {
@@ -37,16 +38,13 @@ namespace Dynamo::Graphics {
         VkCommandPool _graphics_pool;
         VkCommandPool _transfer_pool;
 
-        Buffer _vertex_buffer;
-        Buffer _index_buffer;
-        Buffer _staging_buffer;
-
-        MeshSet _meshes;
-        ShaderSet _shaders;
+        MeshRegistry _meshes;
+        ShaderRegistry _shaders;
         MaterialRegistry _materials;
+        UniformRegistry _uniforms;
         FramebufferCache _framebuffers;
 
-        FrameContextList<3> _frame_contexts;
+        FrameContextList _frame_contexts;
 
         std::vector<Model> _models;
         VkClearValue _clear;
@@ -54,7 +52,7 @@ namespace Dynamo::Graphics {
         // TODO:
         // * Let Buffer take in fallback memory types, only throw when all options exhausted
         //    * Actually, maybe refactor the whole thing. Ugly internals
-        // * Uniform buffers -> Need a good way to expose this to user, MaterialInstance handles?
+        // * Pre-defined render passes
         // * Depth-stencil buffer
         // * Texture system -> Similar to shaders / meshes, generate a handle and return
         // * Draw-to-texture -> overload render(), render(Texture texture)
@@ -117,6 +115,40 @@ namespace Dynamo::Graphics {
          * @param shader
          */
         void destroy_shader(Shader shader);
+
+        /**
+         * @brief Build a material.
+         *
+         * @param descriptor
+         * @return Material
+         */
+        Material build_material(const MaterialDescriptor &descriptor);
+
+        /**
+         * @brief Free material instance resources.
+         *
+         * @param material
+         */
+        void destroy_material(Material material);
+
+        /**
+         * @brief Get a reference to a uniform from a material.
+         *
+         * @param material
+         * @param name
+         * @return std::optional<Uniform>
+         */
+        std::optional<Uniform> get_uniform(Material material, const std::string &name);
+
+        /**
+         * @brief Write to a uniform.
+         *
+         * Data must match the size of the uniform variable.
+         *
+         * @param uniform
+         * @param data
+         */
+        void write_uniform(Uniform uniform, void *data);
 
         /**
          * @brief Draw a model in the current frame.
