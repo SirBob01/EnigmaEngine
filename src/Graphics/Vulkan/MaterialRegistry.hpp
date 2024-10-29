@@ -54,24 +54,22 @@ namespace Dynamo::Graphics::Vulkan {
      *
      */
     struct PipelineLayoutSettings {
-        VkDescriptorSetLayout *descriptor_layouts;
-        unsigned descriptor_layout_count;
-        VkPushConstantRange *push_constant_ranges;
-        unsigned push_constant_range_count;
+        std::vector<VkDescriptorSetLayout> descriptor_layouts;
+        std::vector<VkPushConstantRange> push_constant_ranges;
 
         inline bool operator==(const PipelineLayoutSettings &other) const {
-            if (descriptor_layout_count != other.descriptor_layout_count ||
-                push_constant_range_count != other.push_constant_range_count) {
+            if (descriptor_layouts.size() != other.descriptor_layouts.size() ||
+                push_constant_ranges.size() != other.push_constant_ranges.size()) {
                 return false;
             }
-            for (unsigned i = 0; i < descriptor_layout_count; i++) {
+            for (unsigned i = 0; i < descriptor_layouts.size(); i++) {
                 if (descriptor_layouts[i] != other.descriptor_layouts[i]) {
                     return false;
                 }
             }
-            for (unsigned i = 0; i < push_constant_range_count; i++) {
-                VkPushConstantRange &a_range = push_constant_ranges[i];
-                VkPushConstantRange &b_range = other.push_constant_ranges[i];
+            for (unsigned i = 0; i < push_constant_ranges.size(); i++) {
+                const VkPushConstantRange &a_range = push_constant_ranges[i];
+                const VkPushConstantRange &b_range = other.push_constant_ranges[i];
                 if (a_range.offset != b_range.offset || a_range.size != b_range.size ||
                     a_range.stageFlags != b_range.stageFlags) {
                     return false;
@@ -83,12 +81,12 @@ namespace Dynamo::Graphics::Vulkan {
         struct Hash {
             inline size_t operator()(const PipelineLayoutSettings &settings) const {
                 size_t hash_base = 0;
-                for (unsigned i = 0; i < settings.descriptor_layout_count; i++) {
+                for (unsigned i = 0; i < settings.descriptor_layouts.size(); i++) {
                     VkDescriptorSetLayout layout = settings.descriptor_layouts[i];
                     size_t hash = std::hash<VkDescriptorSetLayout>{}(layout);
                     hash_base ^= (hash << i);
                 }
-                for (unsigned i = 0; i < settings.push_constant_range_count; i++) {
+                for (unsigned i = 0; i < settings.push_constant_ranges.size(); i++) {
                     const VkPushConstantRange &range = settings.push_constant_ranges[i];
                     size_t hash0 = std::hash<unsigned>{}(range.size);
                     size_t hash1 = std::hash<unsigned>{}(range.offset);

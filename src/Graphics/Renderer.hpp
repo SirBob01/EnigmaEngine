@@ -49,13 +49,14 @@ namespace Dynamo::Graphics {
         std::vector<Model> _models;
         VkClearValue _clear;
 
-        // TODO:
+        // TODO - Fixes:
+        // * Pre-defined render pass ---- Define a default render pass to handle the no-draw case
         // * Let Buffer take in fallback memory types, only throw when all options exhausted
-        //    * Actually, maybe refactor the whole thing. Ugly internals
-        // * Pre-defined render passes
-        // * Depth-stencil buffer
-        // * Texture system -> Similar to shaders / meshes, generate a handle and return
-        // * Draw-to-texture -> overload render(), render(Texture texture)
+
+        // TODO - Features:
+        // * Depth-stencil buffer ---- Update jukebox to showcase 3d perspective (to visualize depth buffering)
+        // * Texture system ---- Similar to shaders / meshes, generate a handle and return
+        // * Draw-to-texture ---- overload render(), render(Texture texture)
 
         /**
          * @brief Rebuild the swapchain.

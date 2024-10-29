@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Vulkan/Buffer.hpp>
@@ -59,6 +61,8 @@ namespace Dynamo::Graphics::Vulkan {
         VkDescriptorPool _pool;
         Buffer _uniform_buffer;
         VirtualMemory _push_constant_buffer;
+
+        std::unordered_map<std::string, unsigned> _shared_offsets;
         SparseArray<Uniform, UniformVariable> _variables;
 
       public:

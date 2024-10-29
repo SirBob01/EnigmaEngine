@@ -198,66 +198,47 @@ namespace Dynamo::Graphics::Vulkan {
                                      const ShaderRegistry &shaders,
                                      UniformRegistry &uniforms) {
         MaterialInstance instance;
+
         const ShaderModule &vertex_module = shaders.get(descriptor.vertex);
         const ShaderModule &fragment_module = shaders.get(descriptor.fragment);
+        std::array<std::reference_wrapper<const ShaderModule>, 2> shader_modules = {
+            vertex_module,
+            fragment_module,
+        };
 
-        // Aggregate descriptor layouts
-        std::vector<VkDescriptorSetLayout> descriptor_layouts;
-        for (const DescriptorSet &set : vertex_module.descriptor_sets) {
-            descriptor_layouts.push_back(set.layout);
-
-            DescriptorAllocation allocation = uniforms.allocate(set);
-            instance.descriptor_sets.push_back(allocation.set);
-            for (Uniform uniform : allocation.uniforms) {
-                instance.uniforms.push_back(uniform);
+        // Aggregate descriptor set layouts and push constants
+        PipelineLayoutSettings layout_settings;
+        for (const ShaderModule &module : shader_modules) {
+            for (const DescriptorSet &set : module.descriptor_sets) {
+                layout_settings.descriptor_layouts.push_back(set.layout);
+                // TODO: What if we have duplicate set layouts? Can we reuse?
+                DescriptorAllocation allocation = uniforms.allocate(set);
+                instance.descriptor_sets.push_back(allocation.set);
+                for (Uniform uniform : allocation.uniforms) {
+                    instance.uniforms.push_back(uniform);
+                }
             }
-        }
-        for (const DescriptorSet &set : fragment_module.descriptor_sets) {
-            descriptor_layouts.push_back(set.layout);
+            for (const PushConstant &push_constant : module.push_constants) {
+                layout_settings.push_constant_ranges.push_back(push_constant.range);
 
-            // TODO: What if we have duplicate set layouts? Need to get unique descriptor layouts to build sets
-            DescriptorAllocation allocation = uniforms.allocate(set);
-            instance.descriptor_sets.push_back(allocation.set);
-            for (Uniform uniform : allocation.uniforms) {
-                instance.uniforms.push_back(uniform);
+                PushConstantAllocation allocation = uniforms.allocate(push_constant);
+                instance.push_constant_ranges.push_back(allocation.range);
+                instance.push_constant_offsets.push_back(allocation.block_offset);
+                instance.uniforms.push_back(allocation.uniform);
             }
-        }
-
-        // Aggregate push constant ranges
-        std::vector<VkPushConstantRange> push_constant_ranges;
-        for (const PushConstant &push_constant : vertex_module.push_constants) {
-            push_constant_ranges.push_back(push_constant.range);
-
-            PushConstantAllocation allocation = uniforms.allocate(push_constant);
-            instance.push_constant_ranges.push_back(allocation.range);
-            instance.push_constant_offsets.push_back(allocation.block_offset);
-            instance.uniforms.push_back(allocation.uniform);
-        }
-        for (const PushConstant &push_constant : fragment_module.push_constants) {
-            push_constant_ranges.push_back(push_constant.range);
-
-            PushConstantAllocation allocation = uniforms.allocate(push_constant);
-            instance.push_constant_ranges.push_back(allocation.range);
-            instance.push_constant_offsets.push_back(allocation.block_offset);
-            instance.uniforms.push_back(allocation.uniform);
         }
 
         // Build pipeline layout
-        PipelineLayoutSettings pipeline_layout_settings;
-        pipeline_layout_settings.descriptor_layouts = descriptor_layouts.data();
-        pipeline_layout_settings.descriptor_layout_count = descriptor_layouts.size();
-        pipeline_layout_settings.push_constant_ranges = push_constant_ranges.data();
-        pipeline_layout_settings.push_constant_range_count = push_constant_ranges.size();
-        auto layout_it = _layouts.find(pipeline_layout_settings);
+        auto layout_it = _layouts.find(layout_settings);
         if (layout_it != _layouts.end()) {
             instance.layout = layout_it->second;
         } else {
             instance.layout = VkPipelineLayout_create(_device,
-                                                      pipeline_layout_settings.descriptor_layouts,
-                                                      pipeline_layout_settings.descriptor_layout_count,
-                                                      pipeline_layout_settings.push_constant_ranges,
-                                                      pipeline_layout_settings.push_constant_range_count);
-            _layouts.emplace(pipeline_layout_settings, instance.layout);
+                                                      layout_settings.descriptor_layouts.data(),
+                                                      layout_settings.descriptor_layouts.size(),
+                                                      layout_settings.push_constant_ranges.data(),
+                                                      layout_settings.push_constant_ranges.size());
+            _layouts.emplace(layout_settings, instance.layout);
         }
 
         // Build render pass

@@ -32,7 +32,20 @@ namespace Dynamo::Graphics::Vulkan {
         // Map descriptors to buffer
         for (DescriptorBinding binding : set.bindings) {
             unsigned block_size = binding.size * binding.descriptor_count;
-            unsigned block_offset = _uniform_buffer.reserve(block_size);
+
+            // Allocate shared uniform once only
+            unsigned block_offset;
+            if (binding.shared) {
+                auto shared_it = _shared_offsets.find(binding.name);
+                if (shared_it != _shared_offsets.end()) {
+                    block_offset = shared_it->second;
+                } else {
+                    block_offset = _uniform_buffer.reserve(block_size);
+                    _shared_offsets.emplace(binding.name, block_offset);
+                }
+            } else {
+                block_offset = _uniform_buffer.reserve(block_size);
+            }
 
             // Write each binding array element
             for (unsigned i = 0; i < binding.descriptor_count; i++) {
@@ -67,8 +80,20 @@ namespace Dynamo::Graphics::Vulkan {
         UniformVariable var;
         var.name = push_constant.name;
         var.type = UniformVariableType::PushConstant;
-        var.block_offset = _push_constant_buffer.reserve(push_constant.range.size);
         var.block_size = push_constant.range.size;
+
+        // Allocate shared uniform once only
+        if (push_constant.shared) {
+            auto shared_it = _shared_offsets.find(push_constant.name);
+            if (shared_it != _shared_offsets.end()) {
+                var.block_offset = shared_it->second;
+            } else {
+                var.block_offset = _push_constant_buffer.reserve(var.block_size);
+                _shared_offsets.emplace(push_constant.name, var.block_offset);
+            }
+        } else {
+            var.block_offset = _push_constant_buffer.reserve(var.block_size);
+        }
 
         PushConstantAllocation allocation;
         allocation.uniform = _variables.insert(var);
@@ -95,7 +120,6 @@ namespace Dynamo::Graphics::Vulkan {
             ptr = _push_constant_buffer.get_mapped(var.block_offset);
             break;
         }
-        DYN_ASSERT(ptr != nullptr);
         std::memcpy(ptr, data, var.block_size);
     }
 
@@ -104,8 +128,10 @@ namespace Dynamo::Graphics::Vulkan {
         switch (var.type) {
         case UniformVariableType::Descriptor:
             _uniform_buffer.free(var.block_offset);
+            break;
         case UniformVariableType::PushConstant:
             _push_constant_buffer.free(var.block_offset);
+            break;
         }
         _variables.remove(uniform);
     }

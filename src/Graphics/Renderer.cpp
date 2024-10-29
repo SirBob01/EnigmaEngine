@@ -250,6 +250,7 @@ namespace Dynamo::Graphics {
         }
         VkResult_log("End Command Buffer", vkEndCommandBuffer(frame.command_buffer));
 
+        // Submit commands
         VkQueue queue;
         vkGetDeviceQueue(_device, _physical.graphics_queues.index, 0, &queue);
 
@@ -266,6 +267,7 @@ namespace Dynamo::Graphics {
 
         VkResult_log("Graphics Submit", vkQueueSubmit(queue, 1, &submit_info, frame.sync_fence));
 
+        // Present the render
         VkPresentInfoKHR present_info = {};
         present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         present_info.waitSemaphoreCount = 1;

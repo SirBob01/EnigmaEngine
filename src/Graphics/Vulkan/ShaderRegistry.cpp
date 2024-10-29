@@ -95,7 +95,9 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    void ShaderRegistry::reflect_descriptor_sets(ShaderModule &module, SpvReflectShaderModule reflection) {
+    void ShaderRegistry::reflect_descriptor_sets(ShaderModule &module,
+                                                 SpvReflectShaderModule reflection,
+                                                 const std::vector<std::string> &shared_uniforms) {
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&reflection, &count, NULL);
         DYN_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
@@ -126,23 +128,31 @@ namespace Dynamo::Graphics::Vulkan {
                 }
                 layout_key.bindings.push_back(layout_binding);
 
+                // Check if uniform variable is shared
+                auto shared_it = std::find_if(shared_uniforms.begin(), shared_uniforms.end(), [&](auto &str) {
+                    return str == refl_binding.name;
+                });
+
                 // Add descriptor metadata to reflection
                 DescriptorBinding descriptor_binding;
                 descriptor_binding.name = refl_binding.name;
+                descriptor_binding.shared = shared_it != shared_uniforms.end();
                 descriptor_binding.set = refl_binding.set;
                 descriptor_binding.binding = refl_binding.binding;
                 descriptor_binding.descriptor_count = layout_binding.descriptorCount;
                 descriptor_binding.size = refl_binding.block.size;
                 descriptor_set.bindings.push_back(descriptor_binding);
 
-                Log::info("* Descriptor (name: {}, set: {}, binding: {}, size: {}, count: {}, type: {}, stage: {})",
-                          descriptor_binding.name,
-                          descriptor_binding.set,
-                          descriptor_binding.binding,
-                          descriptor_binding.size,
-                          descriptor_binding.descriptor_count,
-                          VkDescriptorType_string(layout_binding.descriptorType),
-                          VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(layout_binding.stageFlags)));
+                Log::info(
+                    "* Descriptor (name: {}, set: {}, binding: {}, size: {}, dim: {}, shared: {}, type: {}, stage: {})",
+                    descriptor_binding.name,
+                    descriptor_binding.set,
+                    descriptor_binding.binding,
+                    descriptor_binding.size,
+                    descriptor_binding.descriptor_count,
+                    descriptor_binding.shared,
+                    VkDescriptorType_string(layout_binding.descriptorType),
+                    VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(layout_binding.stageFlags)));
             }
 
             // Build descriptor layout
@@ -161,7 +171,9 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    void ShaderRegistry::reflect_push_constants(ShaderModule &module, SpvReflectShaderModule reflection) {
+    void ShaderRegistry::reflect_push_constants(ShaderModule &module,
+                                                SpvReflectShaderModule reflection,
+                                                const std::vector<std::string> &shared_uniforms) {
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumeratePushConstantBlocks(&reflection, &count, NULL);
         DYN_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
@@ -173,17 +185,24 @@ namespace Dynamo::Graphics::Vulkan {
         for (unsigned i = 0; i < count; i++) {
             SpvReflectBlockVariable &block = *push_constants[i];
 
+            // Check if uniform variable is shared
+            auto shared_it = std::find_if(shared_uniforms.begin(), shared_uniforms.end(), [&](auto &str) {
+                return str == block.name;
+            });
+
             PushConstant push_constant;
             push_constant.name = block.name;
+            push_constant.shared = shared_it != shared_uniforms.end();
             push_constant.range.offset = block.offset;
             push_constant.range.size = block.size;
             push_constant.range.stageFlags = static_cast<VkShaderStageFlagBits>(reflection.shader_stage);
 
             module.push_constants.push_back(push_constant);
-            Log::info("* Push Constant Range (name: {}, offset: {}, size: {}, stage: {})",
+            Log::info("* Push Constant Range (name: {}, offset: {}, size: {}, shared: {}, stage: {})",
                       push_constant.name,
                       push_constant.range.offset,
                       push_constant.range.size,
+                      push_constant.shared,
                       VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(push_constant.range.stageFlags)));
         }
     }
@@ -222,12 +241,36 @@ namespace Dynamo::Graphics::Vulkan {
         SpvReflectResult result = spvReflectCreateShaderModule(bytecode.size() * 4, bytecode.data(), &reflection);
         DYN_ASSERT(result == SPV_REFLECT_RESULT_SUCCESS);
 
-        Log::info("Shader {} reflection:", descriptor.name);
+        Log::info("Shader '{}' reflection:", descriptor.name);
         reflect_vertex_input(module, reflection);
-        reflect_descriptor_sets(module, reflection);
-        reflect_push_constants(module, reflection);
+        reflect_descriptor_sets(module, reflection, descriptor.shared_uniforms);
+        reflect_push_constants(module, reflection, descriptor.shared_uniforms);
         spvReflectDestroyShaderModule(&reflection);
-        Log::info("");
+
+        // Show warning if input shared uniforms do not exist in shader
+        for (const std::string &uniform_name : descriptor.shared_uniforms) {
+            bool found = false;
+            for (const DescriptorSet &set : module.descriptor_sets) {
+                for (const DescriptorBinding &binding : set.bindings) {
+                    if (binding.name == uniform_name) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (found) {
+                continue;
+            }
+            for (const PushConstant &push_constant : module.push_constants) {
+                if (push_constant.name == uniform_name) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                Log::warn("Shared Uniform '{}' not found in Shader '{}'", uniform_name, descriptor.name);
+            }
+        }
 
         // Register the shader module
         return _modules.insert(module);
