@@ -74,6 +74,8 @@ namespace Dynamo::Graphics {
         /**
          * @brief Add an instance attribute to the mesh.
          *
+         * Attribute names should be prefixed with "instance_" in the relevant shader modules.
+         *
          * @tparam T
          * @param array
          * @param count

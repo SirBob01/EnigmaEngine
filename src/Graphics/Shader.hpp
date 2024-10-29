@@ -47,5 +47,11 @@ namespace Dynamo::Graphics {
          *
          */
         ShaderStage stage;
+
+        /**
+         * @brief Names of uniforms that are shared across shader invocations (global variable).
+         *
+         */
+        std::vector<std::string> shared_uniforms;
     };
 } // namespace Dynamo::Graphics

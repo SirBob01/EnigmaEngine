@@ -64,6 +64,7 @@ namespace Dynamo::Graphics::Vulkan {
         unsigned binding;
         unsigned descriptor_count;
         unsigned size;
+        bool shared;
     };
 
     /**
@@ -82,6 +83,7 @@ namespace Dynamo::Graphics::Vulkan {
     struct PushConstant {
         std::string name;
         VkPushConstantRange range;
+        bool shared;
     };
 
     /**
@@ -130,16 +132,22 @@ namespace Dynamo::Graphics::Vulkan {
          *
          * @param module
          * @param reflection
+         * @param shared_uniforms
          */
-        void reflect_descriptor_sets(ShaderModule &module, SpvReflectShaderModule reflection);
+        void reflect_descriptor_sets(ShaderModule &module,
+                                     SpvReflectShaderModule reflection,
+                                     const std::vector<std::string> &shared_uniforms);
 
         /**
          * @brief Extract push constants from the shader source.
          *
          * @param module
          * @param reflection
+         * @param shared_uniforms
          */
-        void reflect_push_constants(ShaderModule &module, SpvReflectShaderModule reflection);
+        void reflect_push_constants(ShaderModule &module,
+                                    SpvReflectShaderModule reflection,
+                                    const std::vector<std::string> &shared_uniforms);
 
       public:
         ShaderRegistry(VkDevice device);
