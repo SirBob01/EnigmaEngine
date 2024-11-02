@@ -43,10 +43,13 @@ namespace Dynamo::Graphics::Vulkan {
         };
     };
 
-    // Shared variable allocation information
-    union SharedVariable {
-        VirtualBuffer descriptor_buffer;
-        unsigned push_constant_offset;
+    // Ref-counted shared allocation information
+    struct SharedVariable {
+        unsigned ref_count;
+        union {
+            VirtualBuffer descriptor_buffer;
+            unsigned push_constant_offset;
+        };
     };
 
     struct DescriptorAllocation {
@@ -71,6 +74,8 @@ namespace Dynamo::Graphics::Vulkan {
         VirtualBuffer
         allocate_uniform_buffer(VkDescriptorSet descriptor_set, DescriptorBinding &binding, MemoryPool &memory);
 
+        void free_allocation(const UniformVariable &var, MemoryPool &memory);
+
       public:
         UniformRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
         UniformRegistry() = default;
@@ -87,7 +92,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         void bind(Uniform uniform, const TextureInstance &texture, unsigned index);
 
-        void free(Uniform uniform, MemoryPool &memory);
+        void destroy(Uniform uniform, MemoryPool &memory);
 
         void destroy(MemoryPool &memory);
     };

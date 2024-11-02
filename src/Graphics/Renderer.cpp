@@ -105,7 +105,7 @@ namespace Dynamo::Graphics {
         // Free allocated descriptor / push constant uniforms
         MaterialInstance &instance = _materials.get(material);
         for (Uniform uniform : instance.uniforms) {
-            _uniforms.free(uniform, _memory);
+            _uniforms.destroy(uniform, _memory);
         }
     }
 
