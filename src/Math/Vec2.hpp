@@ -3,8 +3,6 @@
 #include <cmath>
 #include <functional>
 
-#include <Math/Matrix.hpp>
-
 namespace Dynamo {
     /**
      * @brief 2D vector.
@@ -144,20 +142,6 @@ namespace Dynamo {
          * @return Vec2&
          */
         inline Vec2 &normalize() { return *this /= length(); }
-
-        /**
-         * @brief Apply a transform with a 3x3 matrix.
-         *
-         * @param mat
-         * @return Vec2&
-         */
-        inline Vec2 &transform(const Mat3 &mat) {
-            const auto &vals = mat.values;
-            float w = 1.0 / (vals[6] * x + vals[7] * y + vals[8]);
-            x = (vals[0] * x + vals[1] * y + vals[2]) * w;
-            y = (vals[3] * x + vals[4] * y + vals[5]) * w;
-            return *this;
-        }
 
         /**
          * @brief Dot product.
