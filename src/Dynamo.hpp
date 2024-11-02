@@ -7,6 +7,7 @@
 #include <Graphics/Model.hpp>
 #include <Graphics/Renderer.hpp>
 #include <Graphics/Shader.hpp>
+#include <Graphics/Texture.hpp>
 #include <Input.hpp>
 #include <Math/Box2.hpp>
 #include <Math/Circle.hpp>

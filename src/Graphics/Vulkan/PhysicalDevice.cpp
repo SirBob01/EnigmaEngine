@@ -62,7 +62,7 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    PhysicalDevice PhysicalDevice::select(VkInstance instance, VkSurfaceKHR surface) {
+    PhysicalDevice PhysicalDevice::select_best(VkInstance instance, VkSurfaceKHR surface) {
         unsigned count = 0;
         vkEnumeratePhysicalDevices(instance, &count, nullptr);
         std::vector<VkPhysicalDevice> handles(count);

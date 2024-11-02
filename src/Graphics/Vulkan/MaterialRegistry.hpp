@@ -7,7 +7,6 @@
 #include <vulkan/vulkan.hpp>
 
 #include <Graphics/Material.hpp>
-#include <Graphics/Vulkan/Buffer.hpp>
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
 #include <Graphics/Vulkan/UniformRegistry.hpp>
@@ -15,10 +14,6 @@
 #include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    /**
-     * @brief Render pass configuration settings.
-     *
-     */
     struct RenderPassSettings {
         VkFormat color_format;
         VkFormat depth_format;
@@ -49,10 +44,6 @@ namespace Dynamo::Graphics::Vulkan {
         };
     };
 
-    /**
-     * @brief Pipeline layout settings.
-     *
-     */
     struct PipelineLayoutSettings {
         std::vector<VkDescriptorSetLayout> descriptor_layouts;
         std::vector<VkPushConstantRange> push_constant_ranges;
@@ -98,10 +89,6 @@ namespace Dynamo::Graphics::Vulkan {
         };
     };
 
-    /**
-     * @brief Graphics pipeline configuration settings.
-     *
-     */
     struct GraphicsPipelineSettings {
         VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
@@ -134,10 +121,6 @@ namespace Dynamo::Graphics::Vulkan {
         };
     };
 
-    /**
-     * @brief Material instance with references to allocated Vulkan resources.
-     *
-     */
     struct MaterialInstance {
         VkRenderPass renderpass;
         VkPipelineLayout layout;
@@ -148,10 +131,6 @@ namespace Dynamo::Graphics::Vulkan {
         std::vector<unsigned> push_constant_offsets;
     };
 
-    /**
-     * @brief Material registry caches Vulkan objects associated with a material.
-     *
-     */
     class MaterialRegistry {
         VkDevice _device;
         std::ofstream _ofstream;
@@ -163,68 +142,24 @@ namespace Dynamo::Graphics::Vulkan {
 
         SparseArray<Material, MaterialInstance> _instances;
 
-        /**
-         * @brief Create a Vulkan render pass.
-         *
-         * @param settings
-         * @return VkRenderPass
-         */
         VkRenderPass build_renderpass(const RenderPassSettings &settings) const;
 
-        /**
-         * @brief Create a Vulkan pipeline.
-         *
-         * @param settings
-         * @return VkPipeline
-         */
         VkPipeline build_pipeline(const GraphicsPipelineSettings &settings) const;
 
       public:
         MaterialRegistry(VkDevice device, const std::string &filename);
         MaterialRegistry() = default;
 
-        /**
-         * @brief Build a material and its resources.
-         *
-         * @param descriptor
-         * @param swapchain
-         * @param shaders
-         * @param uniforms
-         * @return MaterialInstance
-         */
         Material build(const MaterialDescriptor &descriptor,
                        const Swapchain &swapchain,
                        const ShaderRegistry &shaders,
-                       UniformRegistry &uniforms);
+                       UniformRegistry &uniforms,
+                       MemoryPool &memory);
 
-        /**
-         * @brief Get a material instance.
-         *
-         * @param material
-         * @return MaterialInstance&
-         */
         MaterialInstance &get(Material material);
 
-        /**
-         * @brief Destroy a material instance.
-         *
-         * Pipeline, layout, and render pass are preserved, only uniforms are freed.
-         *
-         * @param material
-         * @param uniforms
-         */
-        void destroy(Material material, UniformRegistry &uniforms);
-
-        /**
-         * @brief Destroy all Vulkan resources.
-         *
-         */
         void destroy();
 
-        /**
-         * @brief Write the pipeline cache to disk.
-         *
-         */
         void write_to_disk();
     };
 } // namespace Dynamo::Graphics::Vulkan

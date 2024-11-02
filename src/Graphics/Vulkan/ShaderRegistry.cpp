@@ -136,20 +136,20 @@ namespace Dynamo::Graphics::Vulkan {
                 // Add descriptor metadata to reflection
                 DescriptorBinding descriptor_binding;
                 descriptor_binding.name = refl_binding.name;
+                descriptor_binding.type = layout_binding.descriptorType;
                 descriptor_binding.shared = shared_it != shared_uniforms.end();
-                descriptor_binding.set = refl_binding.set;
                 descriptor_binding.binding = refl_binding.binding;
-                descriptor_binding.descriptor_count = layout_binding.descriptorCount;
+                descriptor_binding.count = layout_binding.descriptorCount;
                 descriptor_binding.size = refl_binding.block.size;
                 descriptor_set.bindings.push_back(descriptor_binding);
 
                 Log::info(
                     "* Descriptor (name: {}, set: {}, binding: {}, size: {}, dim: {}, shared: {}, type: {}, stage: {})",
                     descriptor_binding.name,
-                    descriptor_binding.set,
+                    refl_binding.set,
                     descriptor_binding.binding,
                     descriptor_binding.size,
-                    descriptor_binding.descriptor_count,
+                    descriptor_binding.count,
                     descriptor_binding.shared,
                     VkDescriptorType_string(layout_binding.descriptorType),
                     VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(layout_binding.stageFlags)));
@@ -285,11 +285,13 @@ namespace Dynamo::Graphics::Vulkan {
     }
 
     void ShaderRegistry::destroy() {
+        // Destroy descriptor layouts
         for (const auto &[key, layout] : _descriptor_layouts) {
             vkDestroyDescriptorSetLayout(_device, layout, nullptr);
         }
         _descriptor_layouts.clear();
 
+        // Destroy shader modules
         _modules.foreach ([&](ShaderModule &module) { vkDestroyShaderModule(_device, module.handle, nullptr); });
         _modules.clear();
     }

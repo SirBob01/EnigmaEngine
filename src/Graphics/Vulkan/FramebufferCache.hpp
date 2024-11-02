@@ -5,10 +5,6 @@
 #include <vulkan/vulkan_core.h>
 
 namespace Dynamo::Graphics::Vulkan {
-    /**
-     * @brief Framebuffer configuration settings.
-     *
-     */
     struct FramebufferSettings {
         VkImageView view;
         VkExtent2D extent;
@@ -31,10 +27,6 @@ namespace Dynamo::Graphics::Vulkan {
         };
     };
 
-    /**
-     * @brief Framebuffer cache.
-     *
-     */
     class FramebufferCache {
         VkDevice _device;
         std::unordered_map<FramebufferSettings, VkFramebuffer, FramebufferSettings::Hash> _cache;
@@ -43,18 +35,8 @@ namespace Dynamo::Graphics::Vulkan {
         FramebufferCache(VkDevice device);
         FramebufferCache() = default;
 
-        /**
-         * @brief Build a framebuffer.
-         *
-         * @param settings
-         * @return VkFramebuffer
-         */
         VkFramebuffer get(const FramebufferSettings &settings);
 
-        /**
-         * @brief Destroy all framebuffers, invalidating existing handles.
-         *
-         */
         void destroy();
     };
 } // namespace Dynamo::Graphics::Vulkan

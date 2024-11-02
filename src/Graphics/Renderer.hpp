@@ -5,7 +5,7 @@
 #include <Display.hpp>
 #include <Graphics/Mesh.hpp>
 #include <Graphics/Model.hpp>
-#include <Graphics/Vulkan/Buffer.hpp>
+#include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/FrameContext.hpp>
 #include <Graphics/Vulkan/FramebufferCache.hpp>
 #include <Graphics/Vulkan/MaterialRegistry.hpp>
@@ -13,6 +13,7 @@
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
+#include <Graphics/Vulkan/TextureRegistry.hpp>
 #include <Graphics/Vulkan/UniformRegistry.hpp>
 #include <Math/Color.hpp>
 
@@ -38,10 +39,12 @@ namespace Dynamo::Graphics {
         VkCommandPool _graphics_pool;
         VkCommandPool _transfer_pool;
 
+        MemoryPool _memory;
         MeshRegistry _meshes;
         ShaderRegistry _shaders;
         MaterialRegistry _materials;
         UniformRegistry _uniforms;
+        TextureRegistry _textures;
         FramebufferCache _framebuffers;
 
         FrameContextList _frame_contexts;
@@ -51,11 +54,11 @@ namespace Dynamo::Graphics {
 
         // TODO - Fixes:
         // * Pre-defined render pass ---- Define a default render pass to handle the no-draw case
-        // * Let Buffer take in fallback memory types, only throw when all options exhausted
+        // * Memory defragmentation stategy
 
         // TODO - Features:
+        // * Live update texture? --- Support non-shader-optimal image layouts
         // * Depth-stencil buffer ---- Update jukebox to showcase 3d perspective (to visualize depth buffering)
-        // * Texture system ---- Similar to shaders / meshes, generate a handle and return
         // * Draw-to-texture ---- overload render(), render(Texture texture)
 
         /**
@@ -117,6 +120,21 @@ namespace Dynamo::Graphics {
         void destroy_shader(Shader shader);
 
         /**
+         * @brief Build a texture.
+         *
+         * @param descriptor
+         * @return Texture
+         */
+        Texture build_texture(const TextureDescriptor &descriptor);
+
+        /**
+         * @brief Free texture resources.
+         *
+         * @param texture
+         */
+        void destroy_texture(Texture texture);
+
+        /**
          * @brief Build a material.
          *
          * @param descriptor
@@ -143,12 +161,25 @@ namespace Dynamo::Graphics {
         /**
          * @brief Write to a uniform.
          *
-         * Data must match the size of the uniform variable.
+         * If the uniform is an array, an index offset and count can be provided.
          *
          * @param uniform
          * @param data
+         * @param index
+         * @param count
          */
-        void write_uniform(Uniform uniform, void *data);
+        void write_uniform(Uniform uniform, void *data, unsigned index = 0, unsigned count = 1);
+
+        /**
+         * @brief Bind a texture to a uniform variable.
+         *
+         * If the uniform is an array, an index offset can be provided.
+         *
+         * @param uniform
+         * @param texture
+         * @param index
+         */
+        void bind_texture(Uniform uniform, Texture texture, unsigned index = 0);
 
         /**
          * @brief Draw a model in the current frame.

@@ -77,7 +77,7 @@ namespace Dynamo::Graphics::Vulkan {
             swapchain_info.oldSwapchain = previous.value().handle;
         }
 
-        VkResult_log("Create Swapchain", vkCreateSwapchainKHR(device, &swapchain_info, nullptr, &handle));
+        VkResult_check("Create Swapchain", vkCreateSwapchainKHR(device, &swapchain_info, nullptr, &handle));
 
         // Destroy the old swapchain
         if (previous.has_value()) {
