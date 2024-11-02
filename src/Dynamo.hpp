@@ -10,13 +10,14 @@
 #include <Graphics/Texture.hpp>
 #include <Input.hpp>
 #include <Math/Box2.hpp>
+#include <Math/Camera.hpp>
 #include <Math/Circle.hpp>
 #include <Math/Color.hpp>
 #include <Math/Common.hpp>
 #include <Math/Complex.hpp>
 #include <Math/Delaunay.hpp>
 #include <Math/Fourier.hpp>
-#include <Math/Matrix.hpp>
+#include <Math/Mat4.hpp>
 #include <Math/Quaternion.hpp>
 #include <Math/Segment2.hpp>
 #include <Math/Triangle2.hpp>

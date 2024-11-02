@@ -100,14 +100,6 @@ TEST_CASE("Vec2 normalize", "[Vec2]") {
     REQUIRE(a.y == 4.0f / 5);
 }
 
-TEST_CASE("Vec2 transform", "[Vec2]") {
-    Dynamo::Vec2 a(3, 4);
-    Dynamo::Matrix<3> mat;
-    a.transform(mat);
-    REQUIRE(a.x == 3);
-    REQUIRE(a.y == 4);
-}
-
 TEST_CASE("Vec2 dot product", "[Vec2]") {
     Dynamo::Vec2 a(3, 4);
     Dynamo::Vec2 b(1, -2);

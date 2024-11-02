@@ -133,7 +133,7 @@ namespace Dynamo::Graphics::Vulkan {
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizer.polygonMode = settings.polygon_mode;
         rasterizer.cullMode = settings.cull_mode;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizer.lineWidth = 1;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.depthClampEnable = VK_FALSE;
