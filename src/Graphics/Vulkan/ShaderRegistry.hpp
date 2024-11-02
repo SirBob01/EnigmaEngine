@@ -11,10 +11,6 @@
 #include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    /**
-     * @brief Descriptor set layout key.
-     *
-     */
     struct DescriptorLayoutKey {
         std::vector<VkDescriptorSetLayoutBinding> bindings;
 
@@ -54,42 +50,26 @@ namespace Dynamo::Graphics::Vulkan {
         };
     };
 
-    /**
-     * @brief Reflected descriptor binding.
-     *
-     */
     struct DescriptorBinding {
         std::string name;
-        unsigned set;
+        VkDescriptorType type;
         unsigned binding;
-        unsigned descriptor_count;
+        unsigned count;
         unsigned size;
         bool shared;
     };
 
-    /**
-     * @brief Descriptor set.
-     *
-     */
     struct DescriptorSet {
         VkDescriptorSetLayout layout;
         std::vector<DescriptorBinding> bindings;
     };
 
-    /**
-     * @brief Push constant.
-     *
-     */
     struct PushConstant {
         std::string name;
         VkPushConstantRange range;
         bool shared;
     };
 
-    /**
-     * @brief Shader module instance.
-     *
-     */
     struct ShaderModule {
         VkShaderModule handle;
         std::vector<VkVertexInputBindingDescription> bindings;
@@ -98,53 +78,20 @@ namespace Dynamo::Graphics::Vulkan {
         std::vector<PushConstant> push_constants;
     };
 
-    /**
-     * @brief Shader registry.
-     *
-     */
     class ShaderRegistry {
         VkDevice _device;
         SparseArray<Shader, ShaderModule> _modules;
         std::unordered_map<DescriptorLayoutKey, VkDescriptorSetLayout, DescriptorLayoutKey::Hash> _descriptor_layouts;
 
-        /**
-         * @brief Compile a shader source.
-         *
-         * @param name
-         * @param code
-         * @param stage
-         * @param optimized
-         * @return std::vector<uint32_t>
-         */
         std::vector<uint32_t>
         compile(const std::string &name, const std::string &code, VkShaderStageFlagBits stage, bool optimized);
 
-        /**
-         * @brief Extract vertex inputs from the shader source.
-         *
-         * @param module
-         * @param reflection
-         */
         void reflect_vertex_input(ShaderModule &module, SpvReflectShaderModule reflection);
 
-        /**
-         * @brief Extract descriptor sets from the shader source.
-         *
-         * @param module
-         * @param reflection
-         * @param shared_uniforms
-         */
         void reflect_descriptor_sets(ShaderModule &module,
                                      SpvReflectShaderModule reflection,
                                      const std::vector<std::string> &shared_uniforms);
 
-        /**
-         * @brief Extract push constants from the shader source.
-         *
-         * @param module
-         * @param reflection
-         * @param shared_uniforms
-         */
         void reflect_push_constants(ShaderModule &module,
                                     SpvReflectShaderModule reflection,
                                     const std::vector<std::string> &shared_uniforms);
@@ -153,33 +100,12 @@ namespace Dynamo::Graphics::Vulkan {
         ShaderRegistry(VkDevice device);
         ShaderRegistry() = default;
 
-        /**
-         * @brief Get a shader module.
-         *
-         * @param shader
-         * @return ShaderModule&
-         */
         const ShaderModule &get(Shader shader) const;
 
-        /**
-         * @brief Build a shader module from a descriptor.
-         *
-         * @param descriptor
-         * @return Shader
-         */
         Shader build(const ShaderDescriptor &descriptor);
 
-        /**
-         * @brief Destroy a shader module.
-         *
-         * @param shader
-         */
         void destroy(Shader shader);
 
-        /**
-         * @brief Destroy all existing shader modules.
-         *
-         */
         void destroy();
     };
 } // namespace Dynamo::Graphics::Vulkan

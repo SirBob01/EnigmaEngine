@@ -45,6 +45,7 @@ namespace Dynamo {
     }
 
     std::optional<unsigned> Allocator::reserve(unsigned size, unsigned alignment) {
+        DYN_ASSERT(size > 0);
         for (auto it = _free.begin(); it != _free.end(); it++) {
             Block &block = *it;
 
@@ -74,7 +75,7 @@ namespace Dynamo {
                 DYN_ASSERT(_used.count(offset) == 0);
 
                 // Return the offset to the allocation and track it
-                _used[offset] = size;
+                _used.emplace(offset, size);
                 return offset;
             }
         }

@@ -28,7 +28,7 @@ namespace Dynamo::Graphics {
      *
      */
     struct MeshDescriptor {
-        using AttributeBuffer = std::vector<char>;
+        using AttributeBuffer = std::vector<unsigned char>;
 
         std::vector<AttributeBuffer> attributes;
         unsigned vertex_count;

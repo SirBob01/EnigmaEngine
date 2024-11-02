@@ -477,7 +477,56 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    void VkResult_log(const std::string &op_message, VkResult result) {
+    const char *VkImageLayout_string(VkImageLayout layout) {
+        switch (layout) {
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            return "VK_IMAGE_LAYOUT_UNDEFINED";
+        case VK_IMAGE_LAYOUT_GENERAL:
+            return "VK_IMAGE_LAYOUT_GENERAL";
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL";
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL";
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL";
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL";
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL";
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL";
+        case VK_IMAGE_LAYOUT_PREINITIALIZED:
+            return "VK_IMAGE_LAYOUT_PREINITIALIZED";
+        case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL";
+        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL";
+        case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL";
+        case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL";
+        case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL";
+        case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+            return "VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL";
+        case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+            return "VK_IMAGE_LAYOUT_PRESENT_SRC_KHR";
+        case VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR:
+            return "VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR";
+        case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
+            return "VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT";
+        case VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR:
+            return "VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR";
+        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR:
+            return "VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR";
+        case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR:
+            return "VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR";
+        case VK_IMAGE_LAYOUT_MAX_ENUM:
+            return "VK_IMAGE_LAYOUT_MAX_ENUM";
+        }
+    }
+
+    void VkResult_check(const std::string &op_message, VkResult result) {
         if (result != VK_SUCCESS) {
             Log::error("Graphics::Vulkan {}: {}", op_message, VkResult_string(result));
         }
@@ -513,6 +562,41 @@ namespace Dynamo::Graphics::Vulkan {
             return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         case Topology::Line:
             return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        }
+    }
+
+    VkFormat convert_texture_format(TextureFormat format) {
+        switch (format) {
+        case TextureFormat::F32_R_Norm:
+            return VK_FORMAT_R32_SFLOAT;
+        case TextureFormat::U8_RGB_Norm:
+            return VK_FORMAT_R8G8B8_UNORM;
+        case TextureFormat::U8_RGBA_Norm:
+            return VK_FORMAT_R8G8B8A8_UNORM;
+        }
+    }
+
+    VkFilter convert_texture_filter(TextureFilter filter) {
+        switch (filter) {
+        case TextureFilter::Nearest:
+            return VK_FILTER_NEAREST;
+        case TextureFilter::Linear:
+            return VK_FILTER_LINEAR;
+        }
+    }
+
+    VkSamplerAddressMode convert_texture_address_mode(TextureAddressMode address_mode) {
+        switch (address_mode) {
+        case TextureAddressMode::Repeat:
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        case TextureAddressMode::RepeatMirror:
+            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case TextureAddressMode::Clamp:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case TextureAddressMode::ClampMirror:
+            return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+        case TextureAddressMode::ClampBorder:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
         }
     }
 
@@ -552,7 +636,7 @@ namespace Dynamo::Graphics::Vulkan {
         Log::info("");
 
         VkInstance instance;
-        VkResult_log("Create Instance", vkCreateInstance(&instance_info, nullptr, &instance));
+        VkResult_check("Create Instance", vkCreateInstance(&instance_info, nullptr, &instance));
         return instance;
     }
 
@@ -573,7 +657,7 @@ namespace Dynamo::Graphics::Vulkan {
         debugger_info.pfnUserCallback = &VkDebugUtilsMessengerEXT_message_callback;
 
         VkDebugUtilsMessengerEXT debugger;
-        VkResult_log("Create Debugger", vkCreateDebugUtilsMessengerEXT(instance, &debugger_info, nullptr, &debugger));
+        VkResult_check("Create Debugger", vkCreateDebugUtilsMessengerEXT(instance, &debugger_info, nullptr, &debugger));
         return debugger;
     }
 
@@ -615,24 +699,24 @@ namespace Dynamo::Graphics::Vulkan {
         device_info.pNext = &descriptor_indexing;
 
         VkDevice device;
-        VkResult_log("Create Device", vkCreateDevice(physical.handle, &device_info, nullptr, &device));
+        VkResult_check("Create Device", vkCreateDevice(physical.handle, &device_info, nullptr, &device));
         return device;
     }
 
-    VkDeviceMemory VkDeviceMemory_allocate(VkDevice device, unsigned type_index, unsigned size) {
+    VkDeviceMemory VkDeviceMemory_allocate(VkDevice device, unsigned type_index, VkDeviceSize size) {
         VkMemoryAllocateInfo alloc_info = {};
         alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         alloc_info.memoryTypeIndex = type_index;
         alloc_info.allocationSize = size;
 
         VkDeviceMemory memory;
-        VkResult_log("Allocate Memory", vkAllocateMemory(device, &alloc_info, nullptr, &memory));
+        VkResult_check("Allocate Memory", vkAllocateMemory(device, &alloc_info, nullptr, &memory));
         return memory;
     }
 
     VkBuffer VkBuffer_create(VkDevice device,
                              VkBufferUsageFlags usage,
-                             unsigned size,
+                             VkDeviceSize size,
                              const QueueFamily *queue_families,
                              unsigned queue_family_count) {
         std::vector<unsigned> family_indices;
@@ -654,32 +738,88 @@ namespace Dynamo::Graphics::Vulkan {
         }
 
         VkBuffer buffer;
-        VkResult_log("Create Buffer", vkCreateBuffer(device, &buffer_info, nullptr, &buffer));
+        VkResult_check("Create Buffer", vkCreateBuffer(device, &buffer_info, nullptr, &buffer));
         return buffer;
     }
 
-    void VkBuffer_immediate_copy(VkBuffer src,
-                                 VkBuffer dst,
-                                 VkQueue queue,
-                                 VkCommandBuffer command_buffer,
-                                 VkBufferCopy *regions,
-                                 unsigned region_count) {
-        // Copy command
-        VkCommandBufferBeginInfo begin_info = {};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VkImage VkImage_create(VkDevice device,
+                           const VkExtent3D &extent,
+                           VkFormat format,
+                           VkImageLayout layout,
+                           VkImageType type,
+                           VkImageTiling tiling,
+                           VkImageUsageFlags usage,
+                           VkSampleCountFlagBits samples,
+                           unsigned mip_levels,
+                           unsigned array_layers,
+                           const QueueFamily *queue_families,
+                           unsigned queue_family_count) {
+        std::vector<unsigned> family_indices;
+        for (unsigned i = 0; i < queue_family_count; i++) {
+            family_indices.push_back(queue_families[i].index);
+        }
 
-        vkBeginCommandBuffer(command_buffer, &begin_info);
-        vkCmdCopyBuffer(command_buffer, src, dst, region_count, regions);
-        vkEndCommandBuffer(command_buffer);
+        VkImageCreateInfo image_info = {};
+        image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        image_info.extent = extent;
+        image_info.format = format;
+        image_info.imageType = type;
+        image_info.usage = usage;
+        image_info.initialLayout = layout;
+        image_info.samples = samples;
+        image_info.mipLevels = mip_levels;
+        image_info.arrayLayers = array_layers;
+        image_info.queueFamilyIndexCount = family_indices.size();
+        image_info.pQueueFamilyIndices = family_indices.data();
 
-        // Submit the command to the transfer queue
-        VkSubmitInfo submit_info = {};
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &command_buffer;
+        if (family_indices.size() > 1) {
+            image_info.sharingMode = VK_SHARING_MODE_CONCURRENT;
+        } else {
+            image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        }
 
-        vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+        VkImage image;
+        VkResult_check("Create Image", vkCreateImage(device, &image_info, nullptr, &image));
+        return image;
+    }
+
+    void VkImage_transition_layout(VkImage image,
+                                   VkCommandBuffer command_buffer,
+                                   VkFormat format,
+                                   VkImageLayout prev,
+                                   VkImageLayout next,
+                                   const VkImageSubresourceRange &subresources) {
+        VkImageMemoryBarrier barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.image = image;
+        barrier.oldLayout = prev;
+        barrier.newLayout = next;
+        barrier.subresourceRange = subresources;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+        VkPipelineStageFlags src_stage = 0;
+        VkPipelineStageFlags dst_stage = 0;
+
+        if (prev == VK_IMAGE_LAYOUT_UNDEFINED && next == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+            src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        } else if (prev == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && next == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+            src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        } else {
+            Log::error("Graphics::Vulkan unsupported image layout transition: {} -> {}",
+                       VkImageLayout_string(prev),
+                       VkImageLayout_string(next));
+        }
+
+        vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     }
 
     VkImageView VkImageView_create(VkDevice device,
@@ -697,8 +837,42 @@ namespace Dynamo::Graphics::Vulkan {
         view_info.subresourceRange = subresources;
 
         VkImageView view;
-        VkResult_log("Create ImageView", vkCreateImageView(device, &view_info, nullptr, &view));
+        VkResult_check("Create ImageView", vkCreateImageView(device, &view_info, nullptr, &view));
         return view;
+    }
+
+    VkSampler VkSampler_create(VkDevice device,
+                               VkSamplerAddressMode address_mode_u,
+                               VkSamplerAddressMode address_mode_v,
+                               VkSamplerAddressMode address_mode_w,
+                               VkFilter mag_filter,
+                               VkFilter min_filter,
+                               VkBorderColor border_color,
+                               float max_anisotropy) {
+        VkSamplerCreateInfo sampler_info = {};
+        sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        sampler_info.addressModeU = address_mode_u;
+        sampler_info.addressModeV = address_mode_v;
+        sampler_info.addressModeW = address_mode_w;
+        sampler_info.magFilter = mag_filter;
+        sampler_info.minFilter = min_filter;
+        sampler_info.borderColor = border_color;
+        sampler_info.maxAnisotropy = max_anisotropy;
+        sampler_info.anisotropyEnable = VK_TRUE;
+        sampler_info.unnormalizedCoordinates = VK_FALSE;
+
+        // TODO
+        sampler_info.compareEnable = VK_FALSE;
+        sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+
+        sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        sampler_info.mipLodBias = 0.0f;
+        sampler_info.minLod = 0.0f;
+        sampler_info.maxLod = 0.0f;
+
+        VkSampler sampler;
+        VkResult_check("Create Sampler", vkCreateSampler(device, &sampler_info, nullptr, &sampler));
+        return sampler;
     }
 
     VkDescriptorSetLayout VkDescriptorSetLayout_create(VkDevice device,
@@ -710,8 +884,8 @@ namespace Dynamo::Graphics::Vulkan {
         layout_info.pBindings = bindings;
 
         VkDescriptorSetLayout vk_layout;
-        VkResult_log("Create Descriptor Set Layout",
-                     vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &vk_layout));
+        VkResult_check("Create Descriptor Set Layout",
+                       vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &vk_layout));
         return vk_layout;
     }
 
@@ -728,7 +902,7 @@ namespace Dynamo::Graphics::Vulkan {
         layout_info.pPushConstantRanges = push_constant_ranges;
 
         VkPipelineLayout layout;
-        VkResult_log("Create Pipeline Layout", vkCreatePipelineLayout(device, &layout_info, nullptr, &layout));
+        VkResult_check("Create Pipeline Layout", vkCreatePipelineLayout(device, &layout_info, nullptr, &layout));
         return layout;
     }
 
@@ -739,7 +913,7 @@ namespace Dynamo::Graphics::Vulkan {
         shader_info.codeSize = bytecode.size() * sizeof(uint32_t);
 
         VkShaderModule shader;
-        VkResult_log("Create Shader Module", vkCreateShaderModule(device, &shader_info, nullptr, &shader));
+        VkResult_check("Create Shader Module", vkCreateShaderModule(device, &shader_info, nullptr, &shader));
         return shader;
     }
 
@@ -759,7 +933,7 @@ namespace Dynamo::Graphics::Vulkan {
         framebuffer_info.layers = layer_count;
 
         VkFramebuffer framebuffer;
-        VkResult_log("Create Framebuffer", vkCreateFramebuffer(device, &framebuffer_info, nullptr, &framebuffer));
+        VkResult_check("Create Framebuffer", vkCreateFramebuffer(device, &framebuffer_info, nullptr, &framebuffer));
         return framebuffer;
     }
 
@@ -770,7 +944,7 @@ namespace Dynamo::Graphics::Vulkan {
         pool_info.queueFamilyIndex = family.index;
 
         VkCommandPool pool;
-        VkResult_log("Create Command Pool", vkCreateCommandPool(device, &pool_info, nullptr, &pool));
+        VkResult_check("Create Command Pool", vkCreateCommandPool(device, &pool_info, nullptr, &pool));
         return pool;
     }
 
@@ -785,7 +959,7 @@ namespace Dynamo::Graphics::Vulkan {
         alloc_info.level = level;
         alloc_info.commandBufferCount = count;
 
-        VkResult_log("Allocate Command Buffers", vkAllocateCommandBuffers(device, &alloc_info, dst));
+        VkResult_check("Allocate Command Buffers", vkAllocateCommandBuffers(device, &alloc_info, dst));
     }
 
     VkDescriptorPool
@@ -798,7 +972,7 @@ namespace Dynamo::Graphics::Vulkan {
         pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
         VkDescriptorPool pool;
-        VkResult_log("Create Descriptor Pool", vkCreateDescriptorPool(device, &pool_info, nullptr, &pool));
+        VkResult_check("Create Descriptor Pool", vkCreateDescriptorPool(device, &pool_info, nullptr, &pool));
         return pool;
     }
 
@@ -813,7 +987,27 @@ namespace Dynamo::Graphics::Vulkan {
         alloc_info.descriptorSetCount = count;
         alloc_info.pSetLayouts = layouts;
 
-        VkResult_log("Allocate Descriptor Sets", vkAllocateDescriptorSets(device, &alloc_info, dst));
+        VkResult_check("Allocate Descriptor Sets", vkAllocateDescriptorSets(device, &alloc_info, dst));
+    }
+
+    void VkCommandBuffer_immediate_start(VkCommandBuffer command_buffer) {
+        VkCommandBufferBeginInfo begin_info = {};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(command_buffer, &begin_info);
+    }
+
+    void VkCommandBuffer_immediate_end(VkCommandBuffer command_buffer, VkQueue queue) {
+        // Submit the command to the queue
+        VkSubmitInfo submit_info = {};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &command_buffer;
+
+        vkEndCommandBuffer(command_buffer);
+        vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
+        vkQueueWaitIdle(queue);
     }
 
     VkFence VkFence_create(VkDevice device) {
@@ -822,7 +1016,7 @@ namespace Dynamo::Graphics::Vulkan {
         fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
         VkFence fence;
-        VkResult_log("Create Fence", vkCreateFence(device, &fence_info, nullptr, &fence));
+        VkResult_check("Create Fence", vkCreateFence(device, &fence_info, nullptr, &fence));
         return fence;
     }
 
@@ -831,7 +1025,7 @@ namespace Dynamo::Graphics::Vulkan {
         semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
         VkSemaphore semaphore;
-        VkResult_log("Create Semaphore", vkCreateSemaphore(device, &semaphore_info, nullptr, &semaphore));
+        VkResult_check("Create Semaphore", vkCreateSemaphore(device, &semaphore_info, nullptr, &semaphore));
         return semaphore;
     }
 } // namespace Dynamo::Graphics::Vulkan

@@ -17,7 +17,7 @@ namespace Dynamo::Graphics::Vulkan {
         cache_info.initialDataSize = size;
         cache_info.pInitialData = buffer.data();
 
-        VkResult_log("Create Pipeline Cache", vkCreatePipelineCache(_device, &cache_info, nullptr, &_pipeline_cache));
+        VkResult_check("Create Pipeline Cache", vkCreatePipelineCache(_device, &cache_info, nullptr, &_pipeline_cache));
 
         _ofstream.open(filename, std::ios::trunc | std::ios::binary);
     }
@@ -64,7 +64,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         VkRenderPass renderpass;
         VkResult result = vkCreateRenderPass(_device, &renderpass_info, nullptr, &renderpass);
-        VkResult_log("Create Render Pass", result);
+        VkResult_check("Create Render Pass", result);
         return renderpass;
     }
 
@@ -189,14 +189,15 @@ namespace Dynamo::Graphics::Vulkan {
         // Build and cache
         VkPipeline pipeline;
         VkResult result = vkCreateGraphicsPipelines(_device, _pipeline_cache, 1, &pipeline_info, nullptr, &pipeline);
-        VkResult_log("Create Graphics Pipeline", result);
+        VkResult_check("Create Graphics Pipeline", result);
         return pipeline;
     }
 
     Material MaterialRegistry::build(const MaterialDescriptor &descriptor,
                                      const Swapchain &swapchain,
                                      const ShaderRegistry &shaders,
-                                     UniformRegistry &uniforms) {
+                                     UniformRegistry &uniforms,
+                                     MemoryPool &memory) {
         MaterialInstance instance;
 
         const ShaderModule &vertex_module = shaders.get(descriptor.vertex);
@@ -212,8 +213,8 @@ namespace Dynamo::Graphics::Vulkan {
             for (const DescriptorSet &set : module.descriptor_sets) {
                 layout_settings.descriptor_layouts.push_back(set.layout);
                 // TODO: What if we have duplicate set layouts? Can we reuse?
-                DescriptorAllocation allocation = uniforms.allocate(set);
-                instance.descriptor_sets.push_back(allocation.set);
+                DescriptorAllocation allocation = uniforms.allocate(set, memory);
+                instance.descriptor_sets.push_back(allocation.descriptor_set);
                 for (Uniform uniform : allocation.uniforms) {
                     instance.uniforms.push_back(uniform);
                 }
@@ -275,14 +276,6 @@ namespace Dynamo::Graphics::Vulkan {
 
     MaterialInstance &MaterialRegistry::get(Material material) { return _instances.get(material); }
 
-    void MaterialRegistry::destroy(Material material, UniformRegistry &uniforms) {
-        MaterialInstance &instance = _instances.get(material);
-        for (Uniform uniform : instance.uniforms) {
-            uniforms.free(uniform);
-        }
-        _instances.get(material);
-    }
-
     void MaterialRegistry::destroy() {
         // Clean up pipelines
         vkDestroyPipelineCache(_device, _pipeline_cache, nullptr);
@@ -301,7 +294,7 @@ namespace Dynamo::Graphics::Vulkan {
         for (const auto &[key, renderpass] : _renderpasses) {
             vkDestroyRenderPass(_device, renderpass, nullptr);
         }
-        _layouts.clear();
+        _renderpasses.clear();
 
         // Clear all instances
         _instances.clear();

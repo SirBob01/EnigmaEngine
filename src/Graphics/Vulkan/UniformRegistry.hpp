@@ -4,122 +4,91 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <Graphics/Vulkan/Buffer.hpp>
+#include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/FrameContext.hpp>
+#include <Graphics/Vulkan/MemoryPool.hpp>
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
+#include <Graphics/Vulkan/TextureRegistry.hpp>
 #include <Utils/SparseArray.hpp>
 #include <Utils/VirtualMemory.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    /**
-     * @brief In Vulkan, shader variables can be from a descriptor or push constant.
-     *
-     * Renderer API should be able to access both types with the same API.
-     *
-     */
-    enum class UniformVariableType {
+    // In Vulkan, uniform variables can be from a descriptor or push constant.
+    // Renderer API should be able to access both types with the same API.
+    enum class UniformType {
         Descriptor,
         PushConstant,
     };
 
-    /**
-     * @brief Uniform variable block data.
-     *
-     */
-    struct UniformVariable {
-        std::string name;
-        UniformVariableType type;
-        unsigned block_offset;
-        unsigned block_size;
+    struct DescriptorData {
+        VirtualBuffer buffer;
+        VkDescriptorType type;
+        VkDescriptorSet set;
+        unsigned binding;
+        unsigned size;
+        unsigned count;
     };
 
-    /**
-     * @brief Descriptor allocation result.
-     *
-     */
+    struct PushConstantData {
+        unsigned offset;
+        unsigned size;
+    };
+
+    struct UniformVariable {
+        std::string name;
+        UniformType type;
+        union {
+            DescriptorData descriptor;
+            PushConstantData push_constant;
+        };
+    };
+
+    // Shared variable allocation information
+    union SharedVariable {
+        VirtualBuffer descriptor_buffer;
+        unsigned push_constant_offset;
+    };
+
     struct DescriptorAllocation {
-        VkDescriptorSet set;
+        VkDescriptorSet descriptor_set;
         std::vector<Uniform> uniforms;
     };
 
-    /**
-     * @brief Push constant allocation result.
-     *
-     */
     struct PushConstantAllocation {
         Uniform uniform;
         VkPushConstantRange range;
         unsigned block_offset;
     };
 
-    /**
-     * @brief Uniform shader variable registry.
-     *
-     */
     class UniformRegistry {
         VkDevice _device;
         VkDescriptorPool _pool;
-        Buffer _uniform_buffer;
         VirtualMemory _push_constant_buffer;
 
-        std::unordered_map<std::string, unsigned> _shared_offsets;
+        std::unordered_map<std::string, SharedVariable> _shared;
         SparseArray<Uniform, UniformVariable> _variables;
+
+        VirtualBuffer
+        allocate_uniform_buffer(VkDescriptorSet descriptor_set, DescriptorBinding &binding, MemoryPool &memory);
 
       public:
         UniformRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
         UniformRegistry() = default;
 
-        /**
-         * @brief Reserve memory for uniforms from a descriptor set.
-         *
-         * @param set
-         * @return DescriptorAllocation
-         */
-        DescriptorAllocation allocate(const DescriptorSet &set);
+        DescriptorAllocation allocate(const DescriptorSet &set, MemoryPool &memory);
 
-        /**
-         * @brief Reserve memory for uniforms from a push constant.
-         *
-         * @param push_constant
-         * @return PushConstantAllocation
-         */
         PushConstantAllocation allocate(const PushConstant &push_constant);
 
-        /**
-         * @brief Get a uniform variable.
-         *
-         * @param uniform
-         * @return const UniformVariable&
-         */
         const UniformVariable &get(Uniform uniform);
 
-        /**
-         * @brief Get the data pointer to a push constant variable
-         *
-         * @param block_offset
-         * @return void*
-         */
         void *get_push_constant_data(unsigned block_offset);
 
-        /**
-         * @brief Write a value to a uniform variable.
-         *
-         * @param uniform
-         * @param data
-         */
-        void write(Uniform uniform, void *data);
+        void write(Uniform uniform, void *data, unsigned index, unsigned count);
 
-        /**
-         * @brief Free a uniform variable.
-         *
-         * @param uniform
-         */
-        void free(Uniform uniform);
+        void bind(Uniform uniform, const TextureInstance &texture, unsigned index);
 
-        /**
-         * @brief Destroy all uniform allocations.
-         *
-         */
-        void destroy();
+        void free(Uniform uniform, MemoryPool &memory);
+
+        void destroy(MemoryPool &memory);
     };
 } // namespace Dynamo::Graphics::Vulkan

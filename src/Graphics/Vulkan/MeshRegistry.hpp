@@ -5,16 +5,13 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Mesh.hpp>
-#include <Graphics/Vulkan/Buffer.hpp>
+#include <Graphics/Vulkan/MemoryPool.hpp>
 #include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    /**
-     * @brief Mesh GPU allocation instance.
-     *
-     */
-    struct MeshAllocation {
+    struct MeshInstance {
         std::vector<VkDeviceSize> attribute_offsets;
+        std::vector<VirtualBuffer> virtual_buffers;
         std::vector<VkBuffer> buffers;
         VkBuffer index_buffer;
         unsigned index_offset;
@@ -24,49 +21,24 @@ namespace Dynamo::Graphics::Vulkan {
         VkIndexType index_type;
     };
 
-    /**
-     * @brief Mesh registry.
-     *
-     */
     class MeshRegistry {
         VkDevice _device;
-        Buffer _vertex;
-        Buffer _index;
-        Buffer _staging;
+        VkCommandBuffer _command_buffer;
+        VkQueue _transfer_queue;
+        SparseArray<Mesh, MeshInstance> _instances;
 
-        SparseArray<Mesh, MeshAllocation> _allocations;
+        void write_local_buffer(MemoryPool &memory, const void *src, VirtualBuffer &dst, unsigned size);
 
       public:
         MeshRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
         MeshRegistry() = default;
 
-        /**
-         * @brief Get a mesh allocation.
-         *
-         * @param mesh
-         * @return MeshAllocation&
-         */
-        MeshAllocation &get(Mesh mesh);
+        MeshInstance &get(Mesh mesh);
 
-        /**
-         * @brief Upload a mesh descriptor to VRAM.
-         *
-         * @param descriptor
-         * @return Mesh
-         */
-        Mesh build(const MeshDescriptor &descriptor);
+        Mesh build(const MeshDescriptor &descriptor, MemoryPool &memory);
 
-        /**
-         * @brief Free all allocated buffers for a mesh.
-         *
-         * @param mesh
-         */
-        void destroy(Mesh mesh);
+        void destroy(Mesh mesh, MemoryPool &memory);
 
-        /**
-         * @brief Destroy mesh allocation buffers.
-         *
-         */
-        void destroy();
+        void destroy(MemoryPool &memory);
     };
 } // namespace Dynamo::Graphics::Vulkan

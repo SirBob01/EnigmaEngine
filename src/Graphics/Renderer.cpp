@@ -9,7 +9,7 @@ namespace Dynamo::Graphics {
         _surface = _display.create_vulkan_surface(_instance);
 
         // Create the logical device
-        _physical = PhysicalDevice::select(_instance, _surface);
+        _physical = PhysicalDevice::select_best(_instance, _surface);
         _device = VkDevice_create(_physical);
 
         // Build the swapchain and its views
@@ -20,10 +20,12 @@ namespace Dynamo::Graphics {
         _transfer_pool = VkCommandPool_create(_device, _physical.transfer_queues);
 
         // Vulkan object registries
-        _meshes = MeshRegistry(_device, _physical, _transfer_pool);
+        _memory = MemoryPool(_device, _physical);
         _shaders = ShaderRegistry(_device);
-        _materials = MaterialRegistry(_device, root_asset_directory + "/vulkan_cache.bin");
+        _meshes = MeshRegistry(_device, _physical, _transfer_pool);
         _uniforms = UniformRegistry(_device, _physical, _transfer_pool);
+        _textures = TextureRegistry(_device, _physical, _transfer_pool);
+        _materials = MaterialRegistry(_device, root_asset_directory + "/vulkan_cache.bin");
         _framebuffers = FramebufferCache(_device);
 
         // Frame contexts
@@ -46,10 +48,12 @@ namespace Dynamo::Graphics {
         // High-level objects
         _frame_contexts.destroy();
         _framebuffers.destroy();
-        _uniforms.destroy();
         _materials.destroy();
+        _textures.destroy(_memory);
+        _uniforms.destroy(_memory);
+        _meshes.destroy(_memory);
         _shaders.destroy();
-        _meshes.destroy();
+        _memory.destroy();
         _swapchain.destroy();
 
         // Vulkan core objects
@@ -79,19 +83,31 @@ namespace Dynamo::Graphics {
         _clear.color.float32[3] = color.a;
     }
 
-    Mesh Renderer::build_mesh(const MeshDescriptor &descriptor) { return _meshes.build(descriptor); }
+    Mesh Renderer::build_mesh(const MeshDescriptor &descriptor) { return _meshes.build(descriptor, _memory); }
 
-    void Renderer::destroy_mesh(Mesh mesh) { _meshes.destroy(mesh); }
+    void Renderer::destroy_mesh(Mesh mesh) { _meshes.destroy(mesh, _memory); }
 
     Shader Renderer::build_shader(const ShaderDescriptor &descriptor) { return _shaders.build(descriptor); }
 
     void Renderer::destroy_shader(Shader shader) { _shaders.destroy(shader); }
 
-    Material Renderer::build_material(const MaterialDescriptor &descriptor) {
-        return _materials.build(descriptor, _swapchain, _shaders, _uniforms);
+    Texture Renderer::build_texture(const TextureDescriptor &descriptor) {
+        return _textures.build(descriptor, _memory);
     }
 
-    void Renderer::destroy_material(Material material) { _materials.destroy(material, _uniforms); }
+    void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture, _memory); }
+
+    Material Renderer::build_material(const MaterialDescriptor &descriptor) {
+        return _materials.build(descriptor, _swapchain, _shaders, _uniforms, _memory);
+    }
+
+    void Renderer::destroy_material(Material material) {
+        // Free allocated descriptor / push constant uniforms
+        MaterialInstance &instance = _materials.get(material);
+        for (Uniform uniform : instance.uniforms) {
+            _uniforms.free(uniform, _memory);
+        }
+    }
 
     std::optional<Uniform> Renderer::get_uniform(Material material, const std::string &name) {
         MaterialInstance &instance = _materials.get(material);
@@ -104,7 +120,14 @@ namespace Dynamo::Graphics {
         return {};
     }
 
-    void Renderer::write_uniform(Uniform uniform, void *data) { _uniforms.write(uniform, data); }
+    void Renderer::write_uniform(Uniform uniform, void *data, unsigned index, unsigned count) {
+        _uniforms.write(uniform, data, index, count);
+    }
+
+    void Renderer::bind_texture(Uniform uniform, Texture texture, unsigned index) {
+        const TextureInstance &instance = _textures.get(texture);
+        _uniforms.bind(uniform, instance, index);
+    }
 
     void Renderer::draw(const Model &model) { _models.push_back(model); }
 
@@ -123,18 +146,18 @@ namespace Dynamo::Graphics {
             rebuild_swapchain();
             return;
         } else if (acquire_result != VK_SUCCESS && acquire_result != VK_SUBOPTIMAL_KHR) {
-            VkResult_log("Acquire Image", acquire_result);
+            VkResult_check("Acquire Image", acquire_result);
         }
 
-        VkResult_log("Reset Fence", vkResetFences(_device, 1, &frame.sync_fence));
-        VkResult_log("Reset Command Buffer", vkResetCommandBuffer(frame.command_buffer, 0));
+        VkResult_check("Reset Fence", vkResetFences(_device, 1, &frame.sync_fence));
+        VkResult_check("Reset Command Buffer", vkResetCommandBuffer(frame.command_buffer, 0));
 
         VkCommandBufferBeginInfo begin_info = {};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin_info.flags = 0;
         begin_info.pInheritanceInfo = nullptr;
 
-        VkResult_log("Begin Command Recording", vkBeginCommandBuffer(frame.command_buffer, &begin_info));
+        VkResult_check("Begin Command Recording", vkBeginCommandBuffer(frame.command_buffer, &begin_info));
 
         // Group models by material and geometry
         std::sort(_models.begin(), _models.end(), [](const Model &a, const Model &b) {
@@ -161,7 +184,7 @@ namespace Dynamo::Graphics {
         VkPipeline prev_pipeline = VK_NULL_HANDLE;
         Mesh prev_mesh = reinterpret_cast<Mesh>(-1);
         for (Model model : _models) {
-            const MeshAllocation &mesh = _meshes.get(model.mesh);
+            const MeshInstance &mesh = _meshes.get(model.mesh);
             const MaterialInstance &material = _materials.get(model.material);
 
             // Rebind renderpass if changed
@@ -248,7 +271,7 @@ namespace Dynamo::Graphics {
         if (prev_renderpass != VK_NULL_HANDLE) {
             vkCmdEndRenderPass(frame.command_buffer);
         }
-        VkResult_log("End Command Buffer", vkEndCommandBuffer(frame.command_buffer));
+        VkResult_check("End Command Buffer", vkEndCommandBuffer(frame.command_buffer));
 
         // Submit commands
         VkQueue queue;
@@ -265,7 +288,7 @@ namespace Dynamo::Graphics {
         submit_info.pSignalSemaphores = &frame.sync_render_done;
         submit_info.pWaitDstStageMask = &wait_stage_mask;
 
-        VkResult_log("Graphics Submit", vkQueueSubmit(queue, 1, &submit_info, frame.sync_fence));
+        VkResult_check("Graphics Submit", vkQueueSubmit(queue, 1, &submit_info, frame.sync_fence));
 
         // Present the render
         VkPresentInfoKHR present_info = {};
@@ -282,7 +305,7 @@ namespace Dynamo::Graphics {
         if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
             rebuild_swapchain();
         } else if (present_result != VK_SUCCESS) {
-            VkResult_log("Present Render", present_result);
+            VkResult_check("Present Render", present_result);
         }
     }
 } // namespace Dynamo::Graphics
