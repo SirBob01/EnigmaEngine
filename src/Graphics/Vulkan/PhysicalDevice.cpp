@@ -1,6 +1,7 @@
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
 #include <Graphics/Vulkan/Utils.hpp>
 #include <Utils/Log.hpp>
+#include <vulkan/vulkan_core.h>
 
 namespace Dynamo::Graphics::Vulkan {
     PhysicalDevice::PhysicalDevice(VkPhysicalDevice handle, VkSurfaceKHR surface) : handle(handle), surface(surface) {
@@ -31,6 +32,31 @@ namespace Dynamo::Graphics::Vulkan {
                                             priority_depth_formats.size(),
                                             VK_IMAGE_TILING_OPTIMAL,
                                             VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+        // Find maximum supported sample count for MSAA
+        VkSampleCountFlags color_samples = properties.limits.framebufferColorSampleCounts;
+        VkSampleCountFlags depth_samples = properties.limits.framebufferDepthSampleCounts;
+        VkSampleCountFlags counts = color_samples & depth_samples;
+
+        msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+        if (counts & VK_SAMPLE_COUNT_64_BIT) {
+            msaa_samples = VK_SAMPLE_COUNT_64_BIT;
+        }
+        if (counts & VK_SAMPLE_COUNT_32_BIT) {
+            msaa_samples = VK_SAMPLE_COUNT_32_BIT;
+        }
+        if (counts & VK_SAMPLE_COUNT_16_BIT) {
+            msaa_samples = VK_SAMPLE_COUNT_16_BIT;
+        }
+        if (counts & VK_SAMPLE_COUNT_8_BIT) {
+            msaa_samples = VK_SAMPLE_COUNT_8_BIT;
+        }
+        if (counts & VK_SAMPLE_COUNT_4_BIT) {
+            msaa_samples = VK_SAMPLE_COUNT_4_BIT;
+        }
+        if (counts & VK_SAMPLE_COUNT_2_BIT) {
+            msaa_samples = VK_SAMPLE_COUNT_2_BIT;
+        }
 
         // Select queue families for each type
         unsigned index = 0;
@@ -107,6 +133,7 @@ namespace Dynamo::Graphics::Vulkan {
         Log::info("Vulkan max allocation count: {}", best.properties.limits.maxMemoryAllocationCount);
         Log::info("Vulkan max per-set descriptors: {}", best.maintenance.maxPerSetDescriptors);
         Log::info("Vulkan depth-stencil format: {}", VkFormat_string(best.depth_format));
+        Log::info("Vulkan max MSAA sample count: {}", VkSampleCountFlagBits_string(best.msaa_samples));
 
         // Log device queue families
         Log::info("Vulkan graphics queues (Family Index: {} | Count: {})",

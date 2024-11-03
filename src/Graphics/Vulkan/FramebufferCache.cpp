@@ -10,17 +10,17 @@ namespace Dynamo::Graphics::Vulkan {
             return framebuffer_it->second;
         }
 
-        unsigned layer_count = 1;
-        std::array<VkImageView, 2> views = {
+        std::array<VkImageView, 3> views = {
             settings.color_view,
             settings.depth_stencil_view,
+            settings.color_resolve_view,
         };
         VkFramebuffer framebuffer = VkFramebuffer_create(_device,
                                                          settings.renderpass,
                                                          settings.extent,
                                                          views.data(),
                                                          views.size(),
-                                                         layer_count);
+                                                         settings.layers);
         _cache.emplace(settings, framebuffer);
         return framebuffer;
     }

@@ -22,12 +22,14 @@ namespace Dynamo::Graphics::Vulkan {
     struct PhysicalDevice {
         VkPhysicalDevice handle;
         VkSurfaceKHR surface;
-        VkFormat depth_format;
 
         VkPhysicalDeviceProperties properties;
         VkPhysicalDeviceMaintenance3Properties maintenance;
         VkPhysicalDeviceMemoryProperties memory;
         VkPhysicalDeviceFeatures features;
+
+        VkFormat depth_format;
+        VkSampleCountFlagBits msaa_samples;
 
         QueueFamily graphics_queues;
         QueueFamily present_queues;

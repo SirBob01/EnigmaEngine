@@ -15,6 +15,8 @@ namespace Dynamo::Graphics::Vulkan {
 
     const char *VkFormat_string(VkFormat format);
 
+    const char *VkSampleCountFlagBits_string(VkSampleCountFlagBits samples);
+
     const char *VkPhysicalDeviceType_string(VkPhysicalDeviceType type);
 
     const char *VkShaderStageFlagBits_string(VkShaderStageFlagBits stage);
@@ -86,7 +88,8 @@ namespace Dynamo::Graphics::Vulkan {
                                VkFilter mag_filter,
                                VkFilter min_filter,
                                VkBorderColor border_color,
-                               float max_anisotropy);
+                               float max_anisotropy,
+                               unsigned mip_levels);
 
     VkDescriptorSetLayout
     VkDescriptorSetLayout_create(VkDevice device, const VkDescriptorSetLayoutBinding *bindings, unsigned binding_count);
