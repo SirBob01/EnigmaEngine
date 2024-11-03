@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
 
 #include <Graphics/Material.hpp>
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
@@ -16,30 +16,23 @@
 namespace Dynamo::Graphics::Vulkan {
     struct RenderPassSettings {
         VkFormat color_format;
-        VkFormat depth_format;
-
         bool clear_color = false;
         bool clear_depth = false;
-
-        unsigned sample_count = 1;
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
 
         inline bool operator==(const RenderPassSettings &other) const {
-            return color_format == other.color_format && depth_format == other.depth_format &&
-                   clear_color == other.clear_color && clear_depth == other.clear_depth &&
-                   sample_count == other.sample_count;
+            return color_format == other.color_format && clear_color == other.clear_color &&
+                   clear_depth == other.clear_depth && samples == other.samples;
         }
 
         struct Hash {
             inline size_t operator()(const RenderPassSettings &settings) const {
                 size_t hash0 = std::hash<bool>{}(settings.clear_color);
                 size_t hash1 = std::hash<bool>{}(settings.clear_depth);
-
                 size_t hash2 = std::hash<VkFormat>{}(settings.color_format);
-                size_t hash3 = std::hash<VkFormat>{}(settings.depth_format);
+                size_t hash3 = std::hash<VkSampleCountFlagBits>{}(settings.samples);
 
-                size_t hash4 = std::hash<unsigned>{}(settings.sample_count);
-
-                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4);
+                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3);
             }
         };
     };
@@ -133,6 +126,8 @@ namespace Dynamo::Graphics::Vulkan {
 
     class MaterialRegistry {
         VkDevice _device;
+        const PhysicalDevice *_physical;
+
         std::ofstream _ofstream;
         VkPipelineCache _pipeline_cache;
 
@@ -147,7 +142,7 @@ namespace Dynamo::Graphics::Vulkan {
         VkPipeline build_pipeline(const GraphicsPipelineSettings &settings) const;
 
       public:
-        MaterialRegistry(VkDevice device, const std::string &filename);
+        MaterialRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename);
         MaterialRegistry() = default;
 
         Material build(const MaterialDescriptor &descriptor,

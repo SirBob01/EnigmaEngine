@@ -73,27 +73,27 @@ namespace Dynamo::Graphics::Vulkan {
         return buffer;
     }
 
-    VirtualImage MemoryPool::build(const TextureDescriptor &descriptor) {
+    VirtualImage MemoryPool::build(const VkExtent3D &extent,
+                                   VkFormat format,
+                                   VkImageLayout layout,
+                                   VkImageType type,
+                                   VkImageTiling tiling,
+                                   VkImageUsageFlags usage,
+                                   VkSampleCountFlagBits samples,
+                                   unsigned mip_levels,
+                                   unsigned array_layers) {
         // Create the image
-        VkExtent3D extent;
-        extent.width = descriptor.width;
-        extent.height = descriptor.height;
-        extent.depth = 1;
-
-        VkFormat format = convert_texture_format(descriptor.format);
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-
         VirtualImage image;
         image.image = VkImage_create(_device,
                                      extent,
                                      format,
-                                     VK_IMAGE_LAYOUT_UNDEFINED,
-                                     VK_IMAGE_TYPE_2D,
-                                     VK_IMAGE_TILING_OPTIMAL,
+                                     layout,
+                                     type,
+                                     tiling,
                                      usage,
-                                     VK_SAMPLE_COUNT_1_BIT,
-                                     1,
-                                     1,
+                                     samples,
+                                     mip_levels,
+                                     array_layers,
                                      nullptr,
                                      0);
 

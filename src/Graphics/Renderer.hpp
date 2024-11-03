@@ -47,10 +47,11 @@ namespace Dynamo::Graphics {
         TextureRegistry _textures;
         FramebufferCache _framebuffers;
 
+        Texture _depth_texture;
         FrameContextList _frame_contexts;
 
         std::vector<Model> _models;
-        VkClearValue _clear;
+        std::array<VkClearValue, 2> _clear;
 
         // TODO - Fixes:
         // * Pre-defined render pass ---- Define a default render pass to handle the no-draw case
@@ -58,7 +59,6 @@ namespace Dynamo::Graphics {
 
         // TODO - Features:
         // * Live update texture? --- Support non-shader-optimal image layouts
-        // * Depth-stencil buffer ---- Update jukebox to showcase 3d perspective (to visualize depth buffering)
         // * Draw-to-texture ---- overload render(), render(Texture texture)
 
         /**
@@ -83,11 +83,13 @@ namespace Dynamo::Graphics {
         ~Renderer();
 
         /**
-         * @brief Set the clear color.
+         * @brief Set the clear values.
          *
          * @param color
+         * @param depth
+         * @param stencil
          */
-        void set_clear(Color color);
+        void set_clear(Color color, float depth = 1, unsigned stencil = 0);
 
         /**
          * @brief Build a mesh and upload to VRAM.

@@ -25,17 +25,28 @@ namespace Dynamo::Graphics {
         _meshes = MeshRegistry(_device, _physical, _transfer_pool);
         _uniforms = UniformRegistry(_device, _physical, _transfer_pool);
         _textures = TextureRegistry(_device, _physical, _transfer_pool);
-        _materials = MaterialRegistry(_device, root_asset_directory + "/vulkan_cache.bin");
+        _materials = MaterialRegistry(_device, _physical, root_asset_directory + "/vulkan_cache.bin");
         _framebuffers = FramebufferCache(_device);
+
+        // Setup the depth buffer
+        TextureDescriptor depth_descriptor;
+        depth_descriptor.width = _swapchain.extent.width;
+        depth_descriptor.height = _swapchain.extent.height;
+        depth_descriptor.usage = TextureUsage::DepthStencilTarget;
+        _depth_texture = _textures.build(depth_descriptor, _memory);
 
         // Frame contexts
         _frame_contexts = FrameContextList(_device, _graphics_pool);
 
         // Color fill clear value
-        _clear.color.float32[0] = 0;
-        _clear.color.float32[1] = 0;
-        _clear.color.float32[2] = 0;
-        _clear.color.float32[3] = 1;
+        _clear[0].color.float32[0] = 0;
+        _clear[0].color.float32[1] = 0;
+        _clear[0].color.float32[2] = 0;
+        _clear[0].color.float32[3] = 1;
+
+        // Depth-stencil clear value
+        _clear[1].depthStencil.depth = 1;
+        _clear[1].depthStencil.stencil = 0;
     }
 
     Renderer::~Renderer() {
@@ -74,13 +85,25 @@ namespace Dynamo::Graphics {
 
         // Rebuild the swapchain
         _swapchain = Swapchain(_device, _physical, _display, _swapchain);
+
+        // Rebuild the depth texture
+        TextureDescriptor depth_descriptor;
+        depth_descriptor.width = _swapchain.extent.width;
+        depth_descriptor.height = _swapchain.extent.height;
+        depth_descriptor.usage = TextureUsage::DepthStencilTarget;
+
+        _textures.destroy(_depth_texture, _memory);
+        _depth_texture = _textures.build(depth_descriptor, _memory);
     }
 
-    void Renderer::set_clear(Color color) {
-        _clear.color.float32[0] = color.r;
-        _clear.color.float32[1] = color.g;
-        _clear.color.float32[2] = color.b;
-        _clear.color.float32[3] = color.a;
+    void Renderer::set_clear(Color color, float depth, unsigned stencil) {
+        _clear[0].color.float32[0] = color.r;
+        _clear[0].color.float32[1] = color.g;
+        _clear[0].color.float32[2] = color.b;
+        _clear[0].color.float32[3] = color.a;
+
+        _clear[1].depthStencil.depth = depth;
+        _clear[1].depthStencil.stencil = stencil;
     }
 
     Mesh Renderer::build_mesh(const MeshDescriptor &descriptor) { return _meshes.build(descriptor, _memory); }
@@ -132,6 +155,7 @@ namespace Dynamo::Graphics {
     void Renderer::draw(const Model &model) { _models.push_back(model); }
 
     void Renderer::render() {
+        const VkImageView depth_stencil_view = _textures.get(_depth_texture).view;
         const FrameContext &frame = _frame_contexts.next();
         vkWaitForFences(_device, 1, &frame.sync_fence, VK_TRUE, UINT64_MAX);
 
@@ -190,7 +214,8 @@ namespace Dynamo::Graphics {
             // Rebind renderpass if changed
             if (prev_renderpass != material.renderpass) {
                 FramebufferSettings framebuffer_settings;
-                framebuffer_settings.view = _swapchain.views[image_index];
+                framebuffer_settings.color_view = _swapchain.views[image_index];
+                framebuffer_settings.depth_stencil_view = depth_stencil_view;
                 framebuffer_settings.extent = _swapchain.extent;
                 framebuffer_settings.renderpass = material.renderpass;
                 VkFramebuffer framebuffer = _framebuffers.get(framebuffer_settings);
@@ -201,8 +226,8 @@ namespace Dynamo::Graphics {
                 renderpass_begin_info.renderArea.extent = _swapchain.extent;
                 renderpass_begin_info.renderArea.offset.x = 0;
                 renderpass_begin_info.renderArea.offset.y = 0;
-                renderpass_begin_info.clearValueCount = 1;
-                renderpass_begin_info.pClearValues = &_clear;
+                renderpass_begin_info.clearValueCount = _clear.size();
+                renderpass_begin_info.pClearValues = _clear.data();
                 renderpass_begin_info.framebuffer = framebuffer;
 
                 // End the previous renderpass if active

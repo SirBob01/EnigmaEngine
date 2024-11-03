@@ -8,6 +8,62 @@ namespace Dynamo::Graphics::Vulkan {
         vkGetDeviceQueue(_device, physical.transfer_queues.index, 0, &_transfer_queue);
     }
 
+    void TextureRegistry::write_texels(const TextureDescriptor &descriptor,
+                                       const VkImageSubresourceRange &subresources,
+                                       VkImage image,
+                                       MemoryPool &memory) {
+        VirtualBuffer staging = memory.build(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                             descriptor.texels.size());
+        std::memcpy(staging.mapped, descriptor.texels.data(), descriptor.texels.size());
+
+        // Transition image to optimal layout for buffer copying
+        VkCommandBuffer_immediate_start(_command_buffer);
+        VkImage_transition_layout(image,
+                                  _command_buffer,
+                                  VK_IMAGE_LAYOUT_UNDEFINED,
+                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                  subresources);
+
+        // Copy buffer to image
+        VkBufferImageCopy region = {};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+
+        region.imageOffset.x = 0;
+        region.imageOffset.y = 0;
+        region.imageOffset.z = 0;
+
+        region.imageExtent.width = descriptor.width;
+        region.imageExtent.height = descriptor.height;
+        region.imageExtent.depth = descriptor.depth;
+
+        vkCmdCopyBufferToImage(_command_buffer,
+                               staging.buffer,
+                               image,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               1,
+                               &region);
+
+        // Transition back to target layout
+        VkImage_transition_layout(
+            image,
+            _command_buffer,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // TODO: should this depend on the texture usage?
+            subresources);
+        VkCommandBuffer_immediate_end(_command_buffer, _transfer_queue);
+
+        // Free the staging buffer
+        memory.free(staging);
+    }
+
     Texture TextureRegistry::build(const TextureDescriptor &descriptor, MemoryPool &memory) {
         TextureInstance instance;
 
@@ -35,70 +91,61 @@ namespace Dynamo::Graphics::Vulkan {
             _samplers.emplace(sampler_settings, instance.sampler);
         }
 
-        // Build image
-        instance.image = memory.build(descriptor);
+        // Build the image
+        VkExtent3D extent;
+        extent.width = descriptor.width;
+        extent.height = descriptor.height;
+        extent.depth = descriptor.depth;
 
-        // Copy texels to staging buffer
-        VirtualBuffer staging = memory.build(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                             descriptor.texels.size());
-        std::memcpy(staging.mapped, descriptor.texels.data(), descriptor.texels.size());
+        VkImageType type = descriptor.depth == 1 ? VK_IMAGE_TYPE_2D : VK_IMAGE_TYPE_3D;
+        VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
         VkImageSubresourceRange subresources;
-        subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         subresources.baseMipLevel = 0;
-        subresources.levelCount = 1;
+        subresources.levelCount = descriptor.mip_levels;
         subresources.baseArrayLayer = 0;
         subresources.layerCount = 1;
 
-        // Transition image to optimal layout for buffer copying
-        VkCommandBuffer_immediate_start(_command_buffer);
-        VkImage_transition_layout(instance.image.image,
-                                  _command_buffer,
-                                  VK_FORMAT_R8G8B8A8_SRGB,
-                                  VK_IMAGE_LAYOUT_UNDEFINED,
-                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                  subresources);
+        // Handle different usage cases
+        VkFormat format;
+        switch (descriptor.usage) {
+        case TextureUsage::Static:
+            format = convert_texture_format(descriptor.format);
+            subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            break;
+        case TextureUsage::ColorTarget:
+            format = convert_texture_format(descriptor.format);
+            usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            break;
+        case TextureUsage::DepthStencilTarget:
+            format = _physical->depth_format;
+            usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            subresources.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            break;
+        }
 
-        // Copy buffer to image
-        VkBufferImageCopy region = {};
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
+        // TODO: Sample count
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+        instance.image = memory.build(extent,
+                                      format,
+                                      VK_IMAGE_LAYOUT_UNDEFINED,
+                                      type,
+                                      tiling,
+                                      usage,
+                                      samples,
+                                      descriptor.mip_levels,
+                                      1);
 
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
-
-        region.imageOffset = {0, 0, 0};
-        region.imageExtent = {descriptor.width, descriptor.height, 1};
-
-        vkCmdCopyBufferToImage(_command_buffer,
-                               staging.buffer,
-                               instance.image.image,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               1,
-                               &region);
-
-        // Transition back to shader read optimal layout
-        VkImage_transition_layout(instance.image.image,
-                                  _command_buffer,
-                                  VK_FORMAT_R8G8B8A8_SRGB,
-                                  VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                  subresources);
-        VkCommandBuffer_immediate_end(_command_buffer, _transfer_queue);
-
-        // Free the staging buffer
-        memory.free(staging);
+        // Copy texels to staging buffer, if any
+        if (descriptor.texels.size()) {
+            write_texels(descriptor, subresources, instance.image.image, memory);
+        }
 
         // Build image view
-        instance.view = VkImageView_create(_device,
-                                           instance.image.image,
-                                           convert_texture_format(descriptor.format),
-                                           VK_IMAGE_VIEW_TYPE_2D,
-                                           subresources);
+        VkImageViewType view_type = descriptor.depth == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_3D;
+        instance.view = VkImageView_create(_device, instance.image.image, format, view_type, subresources);
 
         return _instances.insert(instance);
     }

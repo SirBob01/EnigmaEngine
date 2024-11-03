@@ -13,6 +13,8 @@
 namespace Dynamo::Graphics::Vulkan {
     unsigned VkFormat_size(VkFormat format);
 
+    const char *VkFormat_string(VkFormat format);
+
     const char *VkPhysicalDeviceType_string(VkPhysicalDeviceType type);
 
     const char *VkShaderStageFlagBits_string(VkShaderStageFlagBits stage);
@@ -66,7 +68,6 @@ namespace Dynamo::Graphics::Vulkan {
 
     void VkImage_transition_layout(VkImage image,
                                    VkCommandBuffer command_buffer,
-                                   VkFormat format,
                                    VkImageLayout prev,
                                    VkImageLayout next,
                                    const VkImageSubresourceRange &subresources);

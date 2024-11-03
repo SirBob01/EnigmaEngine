@@ -6,12 +6,14 @@
 
 namespace Dynamo::Graphics::Vulkan {
     struct FramebufferSettings {
-        VkImageView view;
         VkExtent2D extent;
+        VkImageView color_view;
+        VkImageView depth_stencil_view;
         VkRenderPass renderpass;
 
         inline bool operator==(const FramebufferSettings &other) const {
-            return view == other.view && extent.width == other.extent.width && extent.height == other.extent.height &&
+            return extent.width == other.extent.width && extent.height == other.extent.height &&
+                   color_view == other.color_view && depth_stencil_view == other.depth_stencil_view &&
                    renderpass == other.renderpass;
         }
 
@@ -19,10 +21,11 @@ namespace Dynamo::Graphics::Vulkan {
             inline size_t operator()(const FramebufferSettings &settings) const {
                 size_t hash0 = std::hash<unsigned>{}(settings.extent.width);
                 size_t hash1 = std::hash<unsigned>{}(settings.extent.height);
-                size_t hash2 = std::hash<VkRenderPass>{}(settings.renderpass);
-                size_t hash3 = std::hash<VkImageView>{}(settings.view);
+                size_t hash2 = std::hash<VkImageView>{}(settings.color_view);
+                size_t hash3 = std::hash<VkImageView>{}(settings.depth_stencil_view);
+                size_t hash4 = std::hash<VkRenderPass>{}(settings.renderpass);
 
-                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3);
+                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4);
             }
         };
     };

@@ -56,7 +56,15 @@ namespace Dynamo::Graphics::Vulkan {
 
         VirtualBuffer build(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size);
 
-        VirtualImage build(const TextureDescriptor &descriptor);
+        VirtualImage build(const VkExtent3D &extent,
+                           VkFormat format,
+                           VkImageLayout layout,
+                           VkImageType type,
+                           VkImageTiling tiling,
+                           VkImageUsageFlags usage,
+                           VkSampleCountFlagBits samples,
+                           unsigned mip_levels,
+                           unsigned array_layers);
 
         void free(const VirtualBuffer &allocation);
 
