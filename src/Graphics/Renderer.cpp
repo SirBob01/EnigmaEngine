@@ -28,12 +28,19 @@ namespace Dynamo::Graphics {
         _materials = MaterialRegistry(_device, _physical, root_asset_directory + "/vulkan_cache.bin");
         _framebuffers = FramebufferCache(_device);
 
+        // Setup the color buffer
+        TextureDescriptor color_descriptor;
+        color_descriptor.width = _swapchain.extent.width;
+        color_descriptor.height = _swapchain.extent.height;
+        color_descriptor.usage = TextureUsage::ColorTarget;
+        _color_texture = build_texture(color_descriptor);
+
         // Setup the depth buffer
-        TextureDescriptor depth_descriptor;
-        depth_descriptor.width = _swapchain.extent.width;
-        depth_descriptor.height = _swapchain.extent.height;
-        depth_descriptor.usage = TextureUsage::DepthStencilTarget;
-        _depth_texture = _textures.build(depth_descriptor, _memory);
+        TextureDescriptor depth_stencil_descriptor;
+        depth_stencil_descriptor.width = _swapchain.extent.width;
+        depth_stencil_descriptor.height = _swapchain.extent.height;
+        depth_stencil_descriptor.usage = TextureUsage::DepthStencilTarget;
+        _depth_stencil_texture = build_texture(depth_stencil_descriptor);
 
         // Frame contexts
         _frame_contexts = FrameContextList(_device, _graphics_pool);
@@ -86,14 +93,21 @@ namespace Dynamo::Graphics {
         // Rebuild the swapchain
         _swapchain = Swapchain(_device, _physical, _display, _swapchain);
 
-        // Rebuild the depth texture
-        TextureDescriptor depth_descriptor;
-        depth_descriptor.width = _swapchain.extent.width;
-        depth_descriptor.height = _swapchain.extent.height;
-        depth_descriptor.usage = TextureUsage::DepthStencilTarget;
+        // Rebuild the color texture
+        TextureDescriptor color_descriptor;
+        color_descriptor.width = _swapchain.extent.width;
+        color_descriptor.height = _swapchain.extent.height;
+        color_descriptor.usage = TextureUsage::ColorTarget;
+        destroy_texture(_color_texture);
+        _color_texture = build_texture(color_descriptor);
 
-        _textures.destroy(_depth_texture, _memory);
-        _depth_texture = _textures.build(depth_descriptor, _memory);
+        // Rebuild the depth-stencil texture
+        TextureDescriptor depth_stencil_descriptor;
+        depth_stencil_descriptor.width = _swapchain.extent.width;
+        depth_stencil_descriptor.height = _swapchain.extent.height;
+        depth_stencil_descriptor.usage = TextureUsage::DepthStencilTarget;
+        destroy_texture(_depth_stencil_texture);
+        _depth_stencil_texture = build_texture(depth_stencil_descriptor);
     }
 
     void Renderer::set_clear(Color color, float depth, unsigned stencil) {
@@ -115,7 +129,7 @@ namespace Dynamo::Graphics {
     void Renderer::destroy_shader(Shader shader) { _shaders.destroy(shader); }
 
     Texture Renderer::build_texture(const TextureDescriptor &descriptor) {
-        return _textures.build(descriptor, _memory);
+        return _textures.build(descriptor, _swapchain, _memory);
     }
 
     void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture, _memory); }
@@ -155,7 +169,9 @@ namespace Dynamo::Graphics {
     void Renderer::draw(const Model &model) { _models.push_back(model); }
 
     void Renderer::render() {
-        const VkImageView depth_stencil_view = _textures.get(_depth_texture).view;
+        const VkImageView color_view = _textures.get(_color_texture).view;
+        const VkImageView depth_stencil_view = _textures.get(_depth_stencil_texture).view;
+
         const FrameContext &frame = _frame_contexts.next();
         vkWaitForFences(_device, 1, &frame.sync_fence, VK_TRUE, UINT64_MAX);
 
@@ -214,10 +230,12 @@ namespace Dynamo::Graphics {
             // Rebind renderpass if changed
             if (prev_renderpass != material.renderpass) {
                 FramebufferSettings framebuffer_settings;
-                framebuffer_settings.color_view = _swapchain.views[image_index];
+                framebuffer_settings.color_view = color_view;
                 framebuffer_settings.depth_stencil_view = depth_stencil_view;
+                framebuffer_settings.color_resolve_view = _swapchain.views[image_index];
                 framebuffer_settings.extent = _swapchain.extent;
                 framebuffer_settings.renderpass = material.renderpass;
+                framebuffer_settings.layers = 1; // TODO: derive from render target image
                 VkFramebuffer framebuffer = _framebuffers.get(framebuffer_settings);
 
                 VkRenderPassBeginInfo renderpass_begin_info = {};

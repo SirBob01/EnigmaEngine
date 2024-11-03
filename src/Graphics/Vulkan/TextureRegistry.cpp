@@ -32,7 +32,7 @@ namespace Dynamo::Graphics::Vulkan {
         region.bufferImageHeight = 0;
 
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.mipLevel = 0; // TODO: Copy mip levels from buffer
         region.imageSubresource.baseArrayLayer = 0;
         region.imageSubresource.layerCount = 1;
 
@@ -64,7 +64,8 @@ namespace Dynamo::Graphics::Vulkan {
         memory.free(staging);
     }
 
-    Texture TextureRegistry::build(const TextureDescriptor &descriptor, MemoryPool &memory) {
+    Texture
+    TextureRegistry::build(const TextureDescriptor &descriptor, const Swapchain &swapchain, MemoryPool &memory) {
         TextureInstance instance;
 
         // Build sampler
@@ -75,6 +76,7 @@ namespace Dynamo::Graphics::Vulkan {
         sampler_settings.mag_filter = convert_texture_filter(descriptor.mag_filter);
         sampler_settings.min_filter = convert_texture_filter(descriptor.min_filter);
         sampler_settings.border_color = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+        sampler_settings.mip_levels = descriptor.mip_levels;
 
         auto sampler_it = _samplers.find(sampler_settings);
         if (sampler_it != _samplers.end()) {
@@ -87,7 +89,8 @@ namespace Dynamo::Graphics::Vulkan {
                                                 sampler_settings.mag_filter,
                                                 sampler_settings.min_filter,
                                                 sampler_settings.border_color,
-                                                _physical->properties.limits.maxSamplerAnisotropy);
+                                                _physical->properties.limits.maxSamplerAnisotropy,
+                                                sampler_settings.mip_levels);
             _samplers.emplace(sampler_settings, instance.sampler);
         }
 
@@ -105,29 +108,34 @@ namespace Dynamo::Graphics::Vulkan {
         subresources.baseMipLevel = 0;
         subresources.levelCount = descriptor.mip_levels;
         subresources.baseArrayLayer = 0;
-        subresources.layerCount = 1;
+        subresources.layerCount = 1; // TODO: Cubemaps
+
+        VkFormat format;
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
 
         // Handle different usage cases
-        VkFormat format;
         switch (descriptor.usage) {
         case TextureUsage::Static:
-            format = convert_texture_format(descriptor.format);
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            format = convert_texture_format(descriptor.format);
             break;
         case TextureUsage::ColorTarget:
-            format = convert_texture_format(descriptor.format);
             usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            samples = _physical->msaa_samples;
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+            // TODO: We shouldn't have to do this if we decouple renderpass from material
+            // A renderpass should be defined by the rendertarget (i.e., this image, the swapchain, etc.)
+            format = swapchain.surface_format.format;
             break;
         case TextureUsage::DepthStencilTarget:
             format = _physical->depth_format;
+            samples = _physical->msaa_samples;
             usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
             subresources.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
             break;
         }
 
-        // TODO: Sample count
-        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
         instance.image = memory.build(extent,
                                       format,
                                       VK_IMAGE_LAYOUT_UNDEFINED,

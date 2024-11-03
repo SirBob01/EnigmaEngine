@@ -32,8 +32,8 @@ namespace Dynamo::Graphics::Vulkan {
         color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         color.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        color.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        color.samples = VK_SAMPLE_COUNT_1_BIT; // TODO
+        color.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color.samples = _physical->msaa_samples;
 
         VkAttachmentDescription depth_stencil = {};
         depth_stencil.format = _physical->depth_format;
@@ -43,7 +43,17 @@ namespace Dynamo::Graphics::Vulkan {
         depth_stencil.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depth_stencil.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         depth_stencil.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        depth_stencil.samples = VK_SAMPLE_COUNT_1_BIT;
+        depth_stencil.samples = _physical->msaa_samples;
+
+        VkAttachmentDescription color_resolve = {};
+        color_resolve.format = settings.color_format;
+        color_resolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_resolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_resolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_resolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        color_resolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        color_resolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        color_resolve.samples = VK_SAMPLE_COUNT_1_BIT;
 
         VkAttachmentReference color_ref = {};
         color_ref.attachment = 0;
@@ -53,11 +63,16 @@ namespace Dynamo::Graphics::Vulkan {
         depth_stencil_ref.attachment = 1;
         depth_stencil_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+        VkAttachmentReference color_resolve_ref = {};
+        color_resolve_ref.attachment = 2;
+        color_resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
         VkSubpassDescription subpass = {};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &color_ref;
         subpass.pDepthStencilAttachment = &depth_stencil_ref;
+        subpass.pResolveAttachments = &color_resolve_ref;
 
         VkSubpassDependency dependency = {};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -69,7 +84,11 @@ namespace Dynamo::Graphics::Vulkan {
         dependency.srcAccessMask = 0;
         dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        std::array<VkAttachmentDescription, 2> attachments = {color, depth_stencil};
+        std::array<VkAttachmentDescription, 3> attachments = {
+            color,
+            depth_stencil,
+            color_resolve,
+        };
         VkRenderPassCreateInfo renderpass_info = {};
         renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderpass_info.attachmentCount = attachments.size();
@@ -160,11 +179,11 @@ namespace Dynamo::Graphics::Vulkan {
         rasterizer.depthBiasSlopeFactor = 0;
         pipeline_info.pRasterizationState = &rasterizer;
 
-        // Multisampling (TODO)
+        // Multisampling
         VkPipelineMultisampleStateCreateInfo ms = {};
         ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         ms.sampleShadingEnable = VK_FALSE;
-        ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        ms.rasterizationSamples = _physical->msaa_samples;
         ms.minSampleShading = 1;
         ms.pSampleMask = nullptr;
         ms.alphaToCoverageEnable = VK_FALSE;

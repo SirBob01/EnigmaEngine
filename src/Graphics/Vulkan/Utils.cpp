@@ -796,6 +796,27 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
+    const char *VkSampleCountFlagBits_string(VkSampleCountFlagBits samples) {
+        switch (samples) {
+        case VK_SAMPLE_COUNT_1_BIT:
+            return "VK_SAMPLE_COUNT_1_BIT";
+        case VK_SAMPLE_COUNT_2_BIT:
+            return "VK_SAMPLE_COUNT_2_BIT";
+        case VK_SAMPLE_COUNT_4_BIT:
+            return "VK_SAMPLE_COUNT_4_BIT";
+        case VK_SAMPLE_COUNT_8_BIT:
+            return "VK_SAMPLE_COUNT_8_BIT";
+        case VK_SAMPLE_COUNT_16_BIT:
+            return "VK_SAMPLE_COUNT_16_BIT";
+        case VK_SAMPLE_COUNT_32_BIT:
+            return "VK_SAMPLE_COUNT_32_BIT";
+        case VK_SAMPLE_COUNT_64_BIT:
+            return "VK_SAMPLE_COUNT_64_BIT";
+        case VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM:
+            return "VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM";
+        }
+    }
+
     const char *VkPhysicalDeviceType_string(VkPhysicalDeviceType type) {
         switch (type) {
         case VK_PHYSICAL_DEVICE_TYPE_OTHER:
@@ -1354,7 +1375,8 @@ namespace Dynamo::Graphics::Vulkan {
                                VkFilter mag_filter,
                                VkFilter min_filter,
                                VkBorderColor border_color,
-                               float max_anisotropy) {
+                               float max_anisotropy,
+                               unsigned mip_levels) {
         VkSamplerCreateInfo sampler_info = {};
         sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
         sampler_info.addressModeU = address_mode_u;
@@ -1374,7 +1396,7 @@ namespace Dynamo::Graphics::Vulkan {
         sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         sampler_info.mipLodBias = 0.0f;
         sampler_info.minLod = 0.0f;
-        sampler_info.maxLod = 0.0f;
+        sampler_info.maxLod = mip_levels;
 
         VkSampler sampler;
         VkResult_check("Create Sampler", vkCreateSampler(device, &sampler_info, nullptr, &sampler));

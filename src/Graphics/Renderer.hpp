@@ -47,17 +47,21 @@ namespace Dynamo::Graphics {
         TextureRegistry _textures;
         FramebufferCache _framebuffers;
 
-        Texture _depth_texture;
+        Texture _color_texture;
+        Texture _depth_stencil_texture;
+
         FrameContextList _frame_contexts;
 
         std::vector<Model> _models;
         std::array<VkClearValue, 2> _clear;
 
         // TODO - Fixes:
-        // * Pre-defined render pass ---- Define a default render pass to handle the no-draw case
+        // * Decouple a renderpass from a material, make it a first class object
         // * Memory defragmentation stategy
 
         // TODO - Features:
+        // * Cubemaps
+        // * Mipmaps from file
         // * Live update texture? --- Support non-shader-optimal image layouts
         // * Draw-to-texture ---- overload render(), render(Texture texture)
 

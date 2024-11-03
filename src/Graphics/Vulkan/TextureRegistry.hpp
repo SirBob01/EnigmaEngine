@@ -7,6 +7,7 @@
 #include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/MemoryPool.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
+#include <Graphics/Vulkan/Swapchain.hpp>
 #include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
@@ -17,11 +18,13 @@ namespace Dynamo::Graphics::Vulkan {
         VkFilter min_filter;
         VkFilter mag_filter;
         VkBorderColor border_color;
+        unsigned mip_levels;
 
         bool operator==(const SamplerSettings &other) const {
             return u_address_mode == other.u_address_mode && v_address_mode == other.v_address_mode &&
                    w_address_mode == other.w_address_mode && min_filter == other.min_filter &&
-                   mag_filter == other.mag_filter && border_color == other.border_color;
+                   mag_filter == other.mag_filter && border_color == other.border_color &&
+                   mip_levels == other.mip_levels;
         }
 
         struct Hash {
@@ -32,8 +35,9 @@ namespace Dynamo::Graphics::Vulkan {
                 size_t hash3 = std::hash<VkFilter>{}(settings.min_filter);
                 size_t hash4 = std::hash<VkFilter>{}(settings.mag_filter);
                 size_t hash5 = std::hash<VkBorderColor>{}(settings.border_color);
+                size_t hash6 = std::hash<unsigned>{}(settings.mip_levels);
 
-                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4) ^ (hash5 << 5);
+                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4) ^ (hash5 << 5) ^ (hash6 << 6);
             }
         };
     };
@@ -63,7 +67,7 @@ namespace Dynamo::Graphics::Vulkan {
         TextureRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
         TextureRegistry() = default;
 
-        Texture build(const TextureDescriptor &descriptor, MemoryPool &memory);
+        Texture build(const TextureDescriptor &descriptor, const Swapchain &swapchain, MemoryPool &memory);
 
         const TextureInstance &get(Texture texture) const;
 
