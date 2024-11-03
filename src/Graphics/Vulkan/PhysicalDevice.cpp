@@ -22,6 +22,16 @@ namespace Dynamo::Graphics::Vulkan {
         std::vector<VkQueueFamilyProperties> queue_families(count);
         vkGetPhysicalDeviceQueueFamilyProperties(handle, &count, queue_families.data());
 
+        // Find supported depth format
+        std::array<VkFormat, 2> priority_depth_formats = {
+            VK_FORMAT_D32_SFLOAT_S8_UINT,
+            VK_FORMAT_D24_UNORM_S8_UINT,
+        };
+        depth_format = get_supported_format(priority_depth_formats.data(),
+                                            priority_depth_formats.size(),
+                                            VK_IMAGE_TILING_OPTIMAL,
+                                            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
         // Select queue families for each type
         unsigned index = 0;
         for (const VkQueueFamilyProperties family : queue_families) {
@@ -96,6 +106,7 @@ namespace Dynamo::Graphics::Vulkan {
         Log::info("Vulkan max allocation size: {}M", best.maintenance.maxMemoryAllocationSize / (1024.0 * 1024.0));
         Log::info("Vulkan max allocation count: {}", best.properties.limits.maxMemoryAllocationCount);
         Log::info("Vulkan max per-set descriptors: {}", best.maintenance.maxPerSetDescriptors);
+        Log::info("Vulkan depth-stencil format: {}", VkFormat_string(best.depth_format));
 
         // Log device queue families
         Log::info("Vulkan graphics queues (Family Index: {} | Count: {})",
@@ -134,6 +145,25 @@ namespace Dynamo::Graphics::Vulkan {
         vkGetPhysicalDeviceSurfacePresentModesKHR(handle, surface, &present_modes_count, options.present_modes.data());
 
         return options;
+    }
+
+    VkFormat PhysicalDevice::get_supported_format(const VkFormat *candidates,
+                                                  unsigned count,
+                                                  VkImageTiling tiling,
+                                                  VkFormatFeatureFlags features) const {
+        for (unsigned i = 0; i < count; i++) {
+            VkFormat format = candidates[i];
+            VkFormatProperties properties;
+            vkGetPhysicalDeviceFormatProperties(handle, format, &properties);
+
+            if (tiling == VK_IMAGE_TILING_LINEAR && (properties.linearTilingFeatures & features) == features) {
+                return format;
+            } else if (tiling == VK_IMAGE_TILING_OPTIMAL && (properties.optimalTilingFeatures & features) == features) {
+                return format;
+            }
+        }
+        Log::error("Vulkan could not find a suitable image format.");
+        return {};
     }
 
     std::vector<QueueFamilyRef> PhysicalDevice::unique_queue_families() const {

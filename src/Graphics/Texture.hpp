@@ -16,9 +16,21 @@ namespace Dynamo::Graphics {
      *
      */
     enum class TextureFormat {
-        F32_R_Norm,
-        U8_RGB_Norm,
-        U8_RGBA_Norm,
+        R16_SFLOAT,
+        R32_SFLOAT,
+        R8G8B8_UNORM,
+        R8G8B8A8_UNORM,
+        R8G8B8A8_SRGB,
+    };
+
+    /**
+     * @brief Texture usage.
+     *
+     */
+    enum class TextureUsage {
+        Static,
+        ColorTarget,
+        DepthStencilTarget,
     };
 
     /**
@@ -50,6 +62,8 @@ namespace Dynamo::Graphics {
         /**
          * @brief Texture unit byte buffer.
          *
+         * If this buffer is empty, the texture will be default initialized.
+         *
          */
         std::vector<unsigned char> texels;
 
@@ -66,10 +80,32 @@ namespace Dynamo::Graphics {
         unsigned height = 0;
 
         /**
-         * @brief Format of the texture determines how the byte buffer is interpreted.
+         * @brief Depth of the texture in texture units (defaults to 1, for 2D texture).
          *
          */
-        TextureFormat format = TextureFormat::U8_RGBA_Norm;
+        unsigned depth = 1;
+
+        /**
+         * @brief Mipmap levels.
+         *
+         */
+        unsigned mip_levels = 1;
+
+        /**
+         * @brief Format of the texture determines how the byte buffer is interpreted.
+         *
+         * This may be overriden depending on the selected TextureUsage.
+         *
+         */
+        TextureFormat format = TextureFormat::R8G8B8A8_SRGB;
+
+        /**
+         * @brief Usage of the texture.
+         *
+         * Allows a texture to be used as a render target.
+         *
+         */
+        TextureUsage usage = TextureUsage::Static;
 
         /**
          * @brief Minification filter.

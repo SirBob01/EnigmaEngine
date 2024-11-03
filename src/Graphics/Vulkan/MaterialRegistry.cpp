@@ -2,7 +2,8 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    MaterialRegistry::MaterialRegistry(VkDevice device, const std::string &filename) : _device(device) {
+    MaterialRegistry::MaterialRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename) :
+        _device(device), _physical(&physical) {
         std::ifstream ifstream;
         ifstream.open(filename, std::ios::app | std::ios::binary);
         ifstream.seekg(0, ifstream.end);
@@ -34,25 +35,41 @@ namespace Dynamo::Graphics::Vulkan {
         color.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
         color.samples = VK_SAMPLE_COUNT_1_BIT; // TODO
 
-        std::array<VkAttachmentDescription, 1> attachments = {color};
+        VkAttachmentDescription depth_stencil = {};
+        depth_stencil.format = _physical->depth_format;
+        depth_stencil.loadOp = settings.clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+        depth_stencil.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_stencil.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depth_stencil.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depth_stencil.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depth_stencil.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depth_stencil.samples = VK_SAMPLE_COUNT_1_BIT;
 
         VkAttachmentReference color_ref = {};
         color_ref.attachment = 0;
         color_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+        VkAttachmentReference depth_stencil_ref = {};
+        depth_stencil_ref.attachment = 1;
+        depth_stencil_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
         VkSubpassDescription subpass = {};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &color_ref;
+        subpass.pDepthStencilAttachment = &depth_stencil_ref;
 
         VkSubpassDependency dependency = {};
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.dstSubpass = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcStageMask =
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstStageMask =
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.srcAccessMask = 0;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
+        std::array<VkAttachmentDescription, 2> attachments = {color, depth_stencil};
         VkRenderPassCreateInfo renderpass_info = {};
         renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderpass_info.attachmentCount = attachments.size();
@@ -174,8 +191,19 @@ namespace Dynamo::Graphics::Vulkan {
         blend.logicOp = VK_LOGIC_OP_COPY;
         pipeline_info.pColorBlendState = &blend;
 
-        // Depth and stencil testing (TODO)
-        pipeline_info.pDepthStencilState = nullptr;
+        // Depth and stencil testing
+        VkPipelineDepthStencilStateCreateInfo depth_stencil = {};
+        depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depth_stencil.depthTestEnable = VK_TRUE;
+        depth_stencil.depthWriteEnable = VK_TRUE;
+        depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depth_stencil.depthBoundsTestEnable = VK_FALSE;
+        depth_stencil.minDepthBounds = 0;
+        depth_stencil.maxDepthBounds = 1;
+        depth_stencil.stencilTestEnable = VK_FALSE;
+        depth_stencil.front = {};
+        depth_stencil.back = {};
+        pipeline_info.pDepthStencilState = &depth_stencil;
 
         // Renderpass and layout
         pipeline_info.subpass = 0;
@@ -246,6 +274,7 @@ namespace Dynamo::Graphics::Vulkan {
         RenderPassSettings renderpass_settings;
         renderpass_settings.color_format = swapchain.surface_format.format;
         renderpass_settings.clear_color = true;
+        renderpass_settings.clear_depth = true;
         auto renderpass_it = _renderpasses.find(renderpass_settings);
         if (renderpass_it != _renderpasses.end()) {
             instance.renderpass = renderpass_it->second;

@@ -22,6 +22,7 @@ namespace Dynamo::Graphics::Vulkan {
     struct PhysicalDevice {
         VkPhysicalDevice handle;
         VkSurfaceKHR surface;
+        VkFormat depth_format;
 
         VkPhysicalDeviceProperties properties;
         VkPhysicalDeviceMaintenance3Properties maintenance;
@@ -39,6 +40,11 @@ namespace Dynamo::Graphics::Vulkan {
         static PhysicalDevice select_best(VkInstance instance, VkSurfaceKHR surface);
 
         SwapchainOptions get_swapchain_options() const;
+
+        VkFormat get_supported_format(const VkFormat *candidates,
+                                      unsigned count,
+                                      VkImageTiling tiling,
+                                      VkFormatFeatureFlags features) const;
 
         std::vector<QueueFamilyRef> unique_queue_families() const;
 
