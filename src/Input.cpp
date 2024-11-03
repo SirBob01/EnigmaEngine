@@ -29,10 +29,12 @@ namespace Dynamo {
             State *state = static_cast<State *>(userptr);
             switch (action) {
             case GLFW_PRESS:
-                state->key_pressed.insert(static_cast<KeyCode>(key));
+                state->key_pressed[key] = true;
+                state->key_down[key] = true;
                 break;
             case GLFW_RELEASE:
-                state->key_released.insert(static_cast<KeyCode>(key));
+                state->key_released[key] = true;
+                state->key_down[key] = false;
                 break;
             default:
                 break;
@@ -46,10 +48,12 @@ namespace Dynamo {
             State *state = static_cast<State *>(userptr);
             switch (action) {
             case GLFW_PRESS:
-                state->mouse_pressed.insert(static_cast<MouseCode>(button));
+                state->mouse_pressed[button] = true;
+                state->mouse_down[button] = true;
                 break;
             case GLFW_RELEASE:
-                state->mouse_released.insert(static_cast<MouseCode>(button));
+                state->mouse_released[button] = true;
+                state->mouse_down[button] = false;
                 break;
             default:
                 break;
@@ -62,17 +66,17 @@ namespace Dynamo {
 
     const Vec2 &Input::get_scroll_offset() const { return _state.scroll_offset; }
 
-    bool Input::is_pressed(KeyCode code) { return _state.key_pressed.count(code); }
+    bool Input::is_pressed(KeyCode code) { return _state.key_pressed[static_cast<unsigned>(code)]; }
 
-    bool Input::is_pressed(MouseCode code) { return _state.mouse_pressed.count(code); }
+    bool Input::is_pressed(MouseCode code) { return _state.mouse_pressed[static_cast<unsigned>(code)]; }
 
-    bool Input::is_released(KeyCode code) { return _state.key_released.count(code); }
+    bool Input::is_released(KeyCode code) { return _state.key_released[static_cast<unsigned>(code)]; }
 
-    bool Input::is_released(MouseCode code) { return _state.mouse_released.count(code); }
+    bool Input::is_released(MouseCode code) { return _state.mouse_released[static_cast<unsigned>(code)]; }
 
-    bool Input::is_down(KeyCode code) { return glfwGetKey(_window, static_cast<int>(code)) == GLFW_PRESS; }
+    bool Input::is_down(KeyCode code) { return _state.key_down[static_cast<unsigned>(code)]; }
 
-    bool Input::is_down(MouseCode code) { return glfwGetMouseButton(_window, static_cast<int>(code)) == GLFW_PRESS; }
+    bool Input::is_down(MouseCode code) { return _state.mouse_down[static_cast<unsigned>(code)]; }
 
     void Input::poll() {
         // Reset scroll state
@@ -80,12 +84,12 @@ namespace Dynamo {
         _state.scroll_offset.y = 0;
 
         // Reset key states
-        _state.key_pressed.clear();
-        _state.key_released.clear();
+        std::fill(_state.key_pressed.begin(), _state.key_pressed.end(), false);
+        std::fill(_state.key_released.begin(), _state.key_released.end(), false);
 
         // Reset mouse button states
-        _state.mouse_pressed.clear();
-        _state.mouse_released.clear();
+        std::fill(_state.mouse_pressed.begin(), _state.mouse_pressed.end(), false);
+        std::fill(_state.mouse_released.begin(), _state.mouse_released.end(), false);
 
         glfwPollEvents();
     }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_set>
+#include <array>
 
 #include <GLFW/glfw3.h>
 
@@ -145,6 +145,18 @@ namespace Dynamo {
     };
 
     /**
+     * @brief Total number of keys.
+     *
+     */
+    constexpr unsigned KEYCODE_COUNT = static_cast<unsigned>(KeyCode::Menu) + 1;
+
+    /**
+     * @brief Total number of mouse buttons.
+     *
+     */
+    constexpr unsigned MOUSECODE_COUNT = static_cast<unsigned>(MouseCode::Middle) + 1;
+
+    /**
      * @brief Input polling handler
      *
      */
@@ -155,11 +167,13 @@ namespace Dynamo {
             Vec2 mouse_position;
             Vec2 scroll_offset;
 
-            std::unordered_set<KeyCode> key_pressed;
-            std::unordered_set<KeyCode> key_released;
+            std::array<bool, KEYCODE_COUNT> key_pressed;
+            std::array<bool, KEYCODE_COUNT> key_released;
+            std::array<bool, KEYCODE_COUNT> key_down;
 
-            std::unordered_set<MouseCode> mouse_pressed;
-            std::unordered_set<MouseCode> mouse_released;
+            std::array<bool, MOUSECODE_COUNT> mouse_pressed;
+            std::array<bool, MOUSECODE_COUNT> mouse_released;
+            std::array<bool, MOUSECODE_COUNT> mouse_down;
         };
         inline static State _state = {};
 
