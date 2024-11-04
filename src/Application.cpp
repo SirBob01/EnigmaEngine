@@ -10,6 +10,7 @@ namespace Dynamo {
                 _jukebox.update();
             }
         });
+        _running = true;
     }
 
     Application::~Application() {
@@ -18,7 +19,7 @@ namespace Dynamo {
         }
     }
 
-    bool Application::is_running() const { return _display.is_open(); }
+    bool Application::is_running() const { return _display.is_open() && _running; }
 
     Display &Application::display() { return _display; }
 
@@ -29,6 +30,8 @@ namespace Dynamo {
     Graphics::Renderer &Application::renderer() { return _renderer; }
 
     Sound::Jukebox &Application::jukebox() { return _jukebox; }
+
+    void Application::quit() { _running = false; }
 
     void Application::update() {
         // Poll for input

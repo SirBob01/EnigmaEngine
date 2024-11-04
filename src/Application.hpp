@@ -51,6 +51,8 @@ namespace Dynamo {
 
         std::thread _audio_thread;
 
+        bool _running;
+
       public:
         /**
          * @brief Initialize a new Application.
@@ -102,6 +104,12 @@ namespace Dynamo {
          * @return Sound::Jukebox&
          */
         Sound::Jukebox &jukebox();
+
+        /**
+         * @brief Quit the application.
+         *
+         */
+        void quit();
 
         /**
          * @brief Update the application state.

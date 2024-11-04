@@ -1,3 +1,4 @@
+#include "GLFW/glfw3.h"
 #include <Input.hpp>
 
 namespace Dynamo {
@@ -77,6 +78,10 @@ namespace Dynamo {
     bool Input::is_down(KeyCode code) { return _state.key_down[static_cast<unsigned>(code)]; }
 
     bool Input::is_down(MouseCode code) { return _state.mouse_down[static_cast<unsigned>(code)]; }
+
+    void Input::capture_mouse() { glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); }
+
+    void Input::release_mouse() { glfwSetInputMode(_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); }
 
     void Input::poll() {
         // Reset scroll state

@@ -263,6 +263,18 @@ namespace Dynamo {
         bool is_down(MouseCode code);
 
         /**
+         * @brief Capture the mouse and disable the cursor.
+         *
+         */
+        void capture_mouse();
+
+        /**
+         * @brief Release the mouse and enable the cursor.
+         *
+         */
+        void release_mouse();
+
+        /**
          * @brief Poll input and update internal state
          *
          */
