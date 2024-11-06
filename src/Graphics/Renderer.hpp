@@ -56,7 +56,8 @@ namespace Dynamo::Graphics {
         std::array<VkClearValue, 2> _clear;
 
         // TODO - Fixes:
-        // * Decouple a renderpass from a material, make it a first class object
+        // * Add setting to configure msaa samples
+        // * Default renderpass?
         // * Memory defragmentation stategy
 
         // TODO - Features:

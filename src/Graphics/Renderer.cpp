@@ -199,9 +199,10 @@ namespace Dynamo::Graphics {
 
         VkResult_check("Begin Command Recording", vkBeginCommandBuffer(frame.command_buffer, &begin_info));
 
-        // Group models by material and geometry
+        // Sort models by group, then material, then geometry
         std::sort(_models.begin(), _models.end(), [](const Model &a, const Model &b) {
-            return (a.material < b.material) || (a.mesh < b.mesh);
+            return a.group < b.group ||
+                   (a.group == b.group && (a.material < b.material || (a.material == b.material && a.mesh < b.mesh)));
         });
 
         // Submit commands

@@ -27,7 +27,7 @@ namespace Dynamo::Graphics::Vulkan {
         VkQueue _transfer_queue;
         SparseArray<Mesh, MeshInstance> _instances;
 
-        void write_local_buffer(MemoryPool &memory, const void *src, VirtualBuffer &dst, unsigned size);
+        void write_vertices(MemoryPool &memory, const void *src, VirtualBuffer &dst, unsigned size);
 
       public:
         MeshRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);

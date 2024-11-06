@@ -20,5 +20,11 @@ namespace Dynamo::Graphics {
          *
          */
         Material material;
+
+        /**
+         * @brief Group index used in sorting.
+         *
+         */
+        int group = 0;
     };
 } // namespace Dynamo::Graphics
