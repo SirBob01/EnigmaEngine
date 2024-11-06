@@ -15,22 +15,22 @@
 
 namespace Dynamo::Graphics::Vulkan {
     struct RenderPassSettings {
+        VkSampleCountFlagBits samples;
         VkFormat color_format;
-        bool clear_color = false;
-        bool clear_depth = false;
-        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+        VkAttachmentLoadOp color_load_op;
+        VkAttachmentStoreOp color_store_op;
 
         inline bool operator==(const RenderPassSettings &other) const {
-            return color_format == other.color_format && clear_color == other.clear_color &&
-                   clear_depth == other.clear_depth && samples == other.samples;
+            return samples == other.samples && color_format == other.color_format &&
+                   color_load_op == other.color_load_op && color_store_op == other.color_store_op;
         }
 
         struct Hash {
             inline size_t operator()(const RenderPassSettings &settings) const {
-                size_t hash0 = std::hash<bool>{}(settings.clear_color);
-                size_t hash1 = std::hash<bool>{}(settings.clear_depth);
-                size_t hash2 = std::hash<VkFormat>{}(settings.color_format);
-                size_t hash3 = std::hash<VkSampleCountFlagBits>{}(settings.samples);
+                size_t hash0 = std::hash<VkSampleCountFlagBits>{}(settings.samples);
+                size_t hash1 = std::hash<VkFormat>{}(settings.color_format);
+                size_t hash2 = std::hash<VkAttachmentLoadOp>{}(settings.color_load_op);
+                size_t hash3 = std::hash<VkAttachmentStoreOp>{}(settings.color_store_op);
 
                 return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3);
             }
@@ -83,33 +83,44 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     struct GraphicsPipelineSettings {
-        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
-        VkCullModeFlags cull_mode = VK_CULL_MODE_BACK_BIT;
-
-        ShaderModule vertex;
-        ShaderModule fragment;
-
-        VkRenderPass renderpass;
         VkPipelineLayout layout;
+        VkRenderPass renderpass;
+        VkShaderModule vertex;
+        VkShaderModule fragment;
+        VkPrimitiveTopology topology;
+        VkPolygonMode fill;
+        VkCullModeFlags cull;
+        VkSampleCountFlagBits samples;
+        VkColorComponentFlags color_mask;
+        bool depth_test;
+        bool depth_write;
+        VkCompareOp depth_test_op;
 
         inline bool operator==(const GraphicsPipelineSettings &other) const {
-            return topology == other.topology && polygon_mode == other.polygon_mode && cull_mode == other.cull_mode &&
-                   vertex.handle == other.vertex.handle && fragment.handle == other.fragment.handle &&
-                   renderpass == other.renderpass && layout == other.layout;
+            return layout == other.layout && renderpass == other.renderpass && vertex == other.vertex &&
+                   fragment == other.fragment && topology == other.topology && fill == other.fill &&
+                   cull == other.cull && samples == other.samples && color_mask == other.color_mask &&
+                   depth_test == other.depth_test && depth_write == other.depth_write &&
+                   depth_test_op == other.depth_test_op;
         }
 
         struct Hash {
             inline size_t operator()(const GraphicsPipelineSettings &settings) const {
-                size_t hash0 = std::hash<VkPrimitiveTopology>{}(settings.topology);
-                size_t hash1 = std::hash<VkPolygonMode>{}(settings.polygon_mode);
-                size_t hash2 = std::hash<VkCullModeFlags>{}(settings.cull_mode);
-                size_t hash3 = std::hash<VkShaderModule>{}(settings.vertex.handle);
-                size_t hash4 = std::hash<VkShaderModule>{}(settings.fragment.handle);
-                size_t hash5 = std::hash<VkRenderPass>{}(settings.renderpass);
-                size_t hash6 = std::hash<VkPipelineLayout>{}(settings.layout);
+                size_t hash0 = std::hash<VkPipelineLayout>{}(settings.layout);
+                size_t hash1 = std::hash<VkRenderPass>{}(settings.renderpass);
+                size_t hash2 = std::hash<VkShaderModule>{}(settings.vertex);
+                size_t hash3 = std::hash<VkShaderModule>{}(settings.fragment);
+                size_t hash4 = std::hash<VkPrimitiveTopology>{}(settings.topology);
+                size_t hash5 = std::hash<VkPolygonMode>{}(settings.fill);
+                size_t hash6 = std::hash<VkCullModeFlags>{}(settings.cull);
+                size_t hash7 = std::hash<VkSampleCountFlagBits>{}(settings.samples);
+                size_t hash8 = std::hash<VkColorComponentFlags>{}(settings.color_mask);
+                size_t hash9 = std::hash<bool>{}(settings.depth_test);
+                size_t hash10 = std::hash<bool>{}(settings.depth_write);
+                size_t hash11 = std::hash<VkCompareOp>{}(settings.depth_test_op);
 
-                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4) ^ (hash5 << 5) ^ (hash6 << 6);
+                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4) ^ (hash5 << 5) ^ (hash6 << 6) ^
+                       (hash7 << 7) ^ (hash8 << 8) ^ (hash9 << 9) ^ (hash10 << 10) ^ (hash11 << 11);
             }
         };
     };
@@ -136,10 +147,6 @@ namespace Dynamo::Graphics::Vulkan {
         std::unordered_map<GraphicsPipelineSettings, VkPipeline, GraphicsPipelineSettings::Hash> _pipelines;
 
         SparseArray<Material, MaterialInstance> _instances;
-
-        VkRenderPass build_renderpass(const RenderPassSettings &settings) const;
-
-        VkPipeline build_pipeline(const GraphicsPipelineSettings &settings) const;
 
       public:
         MaterialRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename);

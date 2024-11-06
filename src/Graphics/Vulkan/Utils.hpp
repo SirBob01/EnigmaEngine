@@ -35,6 +35,8 @@ namespace Dynamo::Graphics::Vulkan {
 
     VkPrimitiveTopology convert_topology(Topology topology);
 
+    VkCompareOp convert_compare_op(CompareOp op);
+
     VkFormat convert_texture_format(TextureFormat format);
 
     VkFilter convert_texture_filter(TextureFilter filter);
@@ -101,6 +103,34 @@ namespace Dynamo::Graphics::Vulkan {
                                              unsigned push_constant_range_count);
 
     VkShaderModule VkShaderModule_create(VkDevice device, const std::vector<uint32_t> &bytecode);
+
+    VkRenderPass VkRenderPass_create(VkDevice device,
+                                     VkSampleCountFlagBits samples,
+                                     VkFormat color_format,
+                                     VkAttachmentLoadOp color_load_op,
+                                     VkAttachmentStoreOp color_store_op,
+                                     VkFormat depth_stencil_format,
+                                     VkAttachmentLoadOp depth_stencil_load_op,
+                                     VkAttachmentStoreOp depth_stencil_store_op);
+
+    VkPipeline VkPipeline_create(VkDevice device,
+                                 VkPipelineCache cache,
+                                 VkPipelineLayout layout,
+                                 VkRenderPass renderpass,
+                                 VkShaderModule vertex,
+                                 VkShaderModule fragment,
+                                 VkPrimitiveTopology topology,
+                                 VkPolygonMode fill,
+                                 VkCullModeFlags cull,
+                                 VkSampleCountFlagBits samples,
+                                 VkColorComponentFlags color_mask,
+                                 bool depth_test,
+                                 bool depth_write,
+                                 VkCompareOp depth_test_op,
+                                 const VkVertexInputBindingDescription *vertex_bindings,
+                                 unsigned vertex_binding_count,
+                                 const VkVertexInputAttributeDescription *vertex_attributes,
+                                 unsigned vertex_attribute_count);
 
     VkFramebuffer VkFramebuffer_create(VkDevice device,
                                        VkRenderPass renderpass,

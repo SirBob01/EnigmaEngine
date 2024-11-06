@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Graphics/Shader.hpp>
+#include <Math/Color.hpp>
 
 namespace Dynamo::Graphics {
     /**
@@ -46,6 +47,21 @@ namespace Dynamo::Graphics {
     };
 
     /**
+     * @brief Comparison operators.
+     *
+     */
+    enum class CompareOp {
+        Always,
+        Never,
+        Equal,
+        NotEqual,
+        Less,
+        LessEqual,
+        Greater,
+        GreaterEqual,
+    };
+
+    /**
      * @brief Material descriptor.
      *
      */
@@ -79,5 +95,29 @@ namespace Dynamo::Graphics {
          *
          */
         Cull cull = Cull::Back;
+
+        /**
+         * @brief RGBA color write mask.
+         *
+         */
+        Color color_mask = Color(1, 1, 1, 1);
+
+        /**
+         * @brief Perform depth test to discard fragments.
+         *
+         */
+        bool depth_test = true;
+
+        /**
+         * @brief Write to the depth buffer (if depth test is enabled).
+         *
+         */
+        bool depth_write = true;
+
+        /**
+         * @brief Depth test operation.
+         *
+         */
+        CompareOp depth_test_op = CompareOp::LessEqual;
     };
 } // namespace Dynamo::Graphics

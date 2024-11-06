@@ -7,7 +7,7 @@ namespace Dynamo::Graphics::Vulkan {
         vkGetDeviceQueue(_device, physical.transfer_queues.index, 0, &_transfer_queue);
     }
 
-    void MeshRegistry::write_local_buffer(MemoryPool &memory, const void *src, VirtualBuffer &dst, unsigned size) {
+    void MeshRegistry::write_vertices(MemoryPool &memory, const void *src, VirtualBuffer &dst, unsigned size) {
         VkBufferCopy region;
         region.srcOffset = 0;
         region.dstOffset = dst.offset;
@@ -41,7 +41,7 @@ namespace Dynamo::Graphics::Vulkan {
             instance.buffers.push_back(vertex.buffer);
             instance.virtual_buffers.push_back(vertex);
 
-            write_local_buffer(memory, attribute.data(), vertex, attribute.size());
+            write_vertices(memory, attribute.data(), vertex, attribute.size());
         }
 
         // Write index array, if available
@@ -61,7 +61,7 @@ namespace Dynamo::Graphics::Vulkan {
             instance.index_offset = index.offset;
             instance.virtual_buffers.push_back(index);
 
-            write_local_buffer(memory, u16_indices.data(), index, size);
+            write_vertices(memory, u16_indices.data(), index, size);
             break;
         }
         case IndexType::U32: {
@@ -79,7 +79,7 @@ namespace Dynamo::Graphics::Vulkan {
             instance.index_offset = index.offset;
             instance.virtual_buffers.push_back(index);
 
-            write_local_buffer(memory, u32_indices.data(), index, size);
+            write_vertices(memory, u32_indices.data(), index, size);
             break;
         }
         case IndexType::None:
