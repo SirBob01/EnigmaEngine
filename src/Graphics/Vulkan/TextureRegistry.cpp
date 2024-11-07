@@ -8,14 +8,16 @@ namespace Dynamo::Graphics::Vulkan {
         vkGetDeviceQueue(_device, physical.transfer_queues.index, 0, &_transfer_queue);
     }
 
-    void TextureRegistry::write_texels(const TextureDescriptor &descriptor,
-                                       const VkImageSubresourceRange &subresources,
+    void TextureRegistry::write_texels(const std::vector<unsigned char> &texels,
                                        VkImage image,
+                                       VkFormat format,
+                                       const VkExtent3D &extent,
+                                       const VkImageSubresourceRange &subresources,
                                        MemoryPool &memory) {
         VirtualBuffer staging = memory.build(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                             descriptor.texels.size());
-        std::memcpy(staging.mapped, descriptor.texels.data(), descriptor.texels.size());
+                                             texels.size());
+        std::memcpy(staging.mapped, texels.data(), texels.size());
 
         // Transition image to optimal layout for buffer copying
         VkCommandBuffer_immediate_start(_command_buffer);
@@ -27,29 +29,31 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Copy buffer to image
         VkBufferImageCopy region = {};
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
+        region.bufferOffset = staging.offset;
+        region.imageSubresource.aspectMask = subresources.aspectMask;
+        region.imageSubresource.baseArrayLayer = subresources.baseArrayLayer;
+        region.imageSubresource.layerCount = subresources.layerCount;
+        region.imageExtent = extent;
 
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0; // TODO: Copy mip levels from buffer
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
+        unsigned stride = VkFormat_size(format);
 
-        region.imageOffset.x = 0;
-        region.imageOffset.y = 0;
-        region.imageOffset.z = 0;
+        while (region.imageSubresource.mipLevel < subresources.levelCount) {
+            // Copy buffer to image
+            vkCmdCopyBufferToImage(_command_buffer,
+                                   staging.buffer,
+                                   image,
+                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                   1,
+                                   &region);
 
-        region.imageExtent.width = descriptor.width;
-        region.imageExtent.height = descriptor.height;
-        region.imageExtent.depth = descriptor.depth;
-
-        vkCmdCopyBufferToImage(_command_buffer,
-                               staging.buffer,
-                               image,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               1,
-                               &region);
+            // Prepare for next LOD
+            VkExtent3D &extent = region.imageExtent;
+            region.bufferOffset += extent.width * extent.height * extent.depth * stride;
+            extent.width = std::max(1U, extent.width / 2);
+            extent.height = std::max(1U, extent.height / 2);
+            extent.depth = std::max(1U, extent.depth / 2);
+            region.imageSubresource.mipLevel++;
+        }
 
         // Transition back to target layout
         VkImage_transition_layout(
@@ -100,39 +104,45 @@ namespace Dynamo::Graphics::Vulkan {
         extent.height = descriptor.height;
         extent.depth = descriptor.depth;
 
+        VkImageSubresourceRange subresources;
+        subresources.baseMipLevel = 0;
+        subresources.baseArrayLayer = 0;
+        subresources.levelCount = descriptor.mip_levels;
+
         VkImageType type = descriptor.depth == 1 ? VK_IMAGE_TYPE_2D : VK_IMAGE_TYPE_3D;
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
         VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        VkImageSubresourceRange subresources;
-        subresources.baseMipLevel = 0;
-        subresources.levelCount = descriptor.mip_levels;
-        subresources.baseArrayLayer = 0;
-        subresources.layerCount = 1; // TODO: Cubemaps
-
         VkFormat format;
         VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+        VkImageCreateFlags flags = 0;
 
         // Handle different usage cases
         switch (descriptor.usage) {
         case TextureUsage::Static:
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            format = convert_texture_format(descriptor.format);
+            subresources.layerCount = 1;
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
+            break;
+        case TextureUsage::Cubemap:
+            subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            subresources.layerCount = 6;
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
+            flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
             break;
         case TextureUsage::ColorTarget:
             usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-            samples = _physical->msaa_samples;
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-
-            // TODO: We shouldn't have to do this if we decouple renderpass from material
-            // A renderpass should be defined by the rendertarget (i.e., this image, the swapchain, etc.)
-            format = swapchain.surface_format.format;
+            subresources.layerCount = 1;
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
+            samples = _physical->msaa_samples;
             break;
         case TextureUsage::DepthStencilTarget:
-            format = _physical->depth_format;
-            samples = _physical->msaa_samples;
             usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
             subresources.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            subresources.layerCount = 1;
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
+            samples = _physical->msaa_samples;
             break;
         }
 
@@ -143,16 +153,24 @@ namespace Dynamo::Graphics::Vulkan {
                                       tiling,
                                       usage,
                                       samples,
-                                      descriptor.mip_levels,
-                                      1);
+                                      flags,
+                                      subresources.levelCount,
+                                      subresources.layerCount);
 
         // Copy texels to staging buffer, if any
         if (descriptor.texels.size()) {
-            write_texels(descriptor, subresources, instance.image.image, memory);
+            write_texels(descriptor.texels, instance.image.image, format, extent, subresources, memory);
         }
 
         // Build image view
-        VkImageViewType view_type = descriptor.depth == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_3D;
+        VkImageViewType view_type;
+        if (descriptor.usage == TextureUsage::Cubemap) {
+            view_type = VK_IMAGE_VIEW_TYPE_CUBE;
+        } else if (type == VK_IMAGE_TYPE_2D) {
+            view_type = VK_IMAGE_VIEW_TYPE_2D;
+        } else {
+            view_type = VK_IMAGE_VIEW_TYPE_3D;
+        }
         instance.view = VkImageView_create(_device, instance.image.image, format, view_type, subresources);
 
         return _instances.insert(instance);

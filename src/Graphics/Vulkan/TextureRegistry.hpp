@@ -58,9 +58,11 @@ namespace Dynamo::Graphics::Vulkan {
         std::unordered_map<SamplerSettings, VkSampler, SamplerSettings::Hash> _samplers;
         SparseArray<Texture, TextureInstance> _instances;
 
-        void write_texels(const TextureDescriptor &descriptor,
-                          const VkImageSubresourceRange &aspect,
+        void write_texels(const std::vector<unsigned char> &texels,
                           VkImage image,
+                          VkFormat format,
+                          const VkExtent3D &extent,
+                          const VkImageSubresourceRange &subresources,
                           MemoryPool &memory);
 
       public:

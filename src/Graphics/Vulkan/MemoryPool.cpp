@@ -80,6 +80,7 @@ namespace Dynamo::Graphics::Vulkan {
                                    VkImageTiling tiling,
                                    VkImageUsageFlags usage,
                                    VkSampleCountFlagBits samples,
+                                   VkImageCreateFlags flags,
                                    unsigned mip_levels,
                                    unsigned array_layers) {
         // Create the image
@@ -92,6 +93,7 @@ namespace Dynamo::Graphics::Vulkan {
                                      tiling,
                                      usage,
                                      samples,
+                                     flags,
                                      mip_levels,
                                      array_layers,
                                      nullptr,

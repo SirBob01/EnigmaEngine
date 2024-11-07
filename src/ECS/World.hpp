@@ -1,7 +1,6 @@
 #pragma once
 
 #include <type_traits>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -21,7 +20,7 @@ namespace Dynamo::ECS {
         std::vector<Entity> _recycle;
 
         // Owned component indices
-        std::unordered_map<Entity, std::unordered_set<unsigned>> _owned;
+        std::vector<std::unordered_set<unsigned>> _owned;
 
         template <typename Component, typename Min>
         Component &fast_get(Entity entity, unsigned index) {
@@ -81,7 +80,7 @@ namespace Dynamo::ECS {
                 _recycle.pop_back();
             } else {
                 entity = reinterpret_cast<Entity>(_counter++);
-                _owned[entity];
+                _owned.emplace_back();
             }
             return entity;
         }
@@ -92,14 +91,12 @@ namespace Dynamo::ECS {
          * @param entity
          */
         void destroy(Entity entity) {
-            auto id_it = _owned.find(entity);
-            if (id_it != _owned.end()) {
-                for (unsigned id : id_it->second) {
-                    _pools[id].remove(entity);
-                }
-                id_it->second.clear();
-                _recycle.push_back(entity);
+            auto &owned = _owned[reinterpret_cast<uintptr_t>(entity)];
+            for (unsigned id : owned) {
+                _pools[id].remove(entity);
             }
+            owned.clear();
+            _recycle.push_back(entity);
         }
 
         /**
@@ -162,7 +159,7 @@ namespace Dynamo::ECS {
         void add(Entity entity, Component &&component) {
             unsigned id = get_pool_id<Component>();
             _pools[id].insert(entity, component);
-            _owned.find(entity)->second.insert(id);
+            _owned[reinterpret_cast<uintptr_t>(entity)].insert(id);
         }
 
         /**
@@ -175,7 +172,7 @@ namespace Dynamo::ECS {
         void remove(Entity entity) {
             unsigned id = get_pool_id<Component>();
             _pools[id].remove(entity);
-            _owned.find(entity)->second.erase(id);
+            _owned[reinterpret_cast<uintptr_t>(entity)].erase(id);
         }
 
         /**

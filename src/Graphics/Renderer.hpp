@@ -55,16 +55,21 @@ namespace Dynamo::Graphics {
         std::vector<Model> _models;
         std::array<VkClearValue, 2> _clear;
 
-        // TODO - Fixes:
-        // * Add setting to configure msaa samples
-        // * Default renderpass?
+        // Important TODO:
+        // * Fix MSAA handling
+        //      - Renderpass attachments are different for sample count = 1 (i hate this)
+        //      - We currently assume that sample count > 1, will crash otherwise
+        // * Default VkRenderPass? Draw-to-texture?
+        //      - Need a good renderpass abstraction system
+        //      - Change the API to build renderpasses and begin/end them at draw time?
+        //      - This class will become a "GraphicsBackend", build user-facing renderer on top of this
+        // * Decouple Material from Uniforms?
+        //      - Material creation is expensive since we need to hash the descriptors (these are huge)
+        //      - Material should be a Pipeline/RenderPass/Layout triplet + metadata for uniform allocation
+        //      - Uniforms are quicker to allocate
+        // * Customizable color blending (do we really need this?)
+        // * Customizable stencil operations
         // * Memory defragmentation stategy
-
-        // TODO - Features:
-        // * Cubemaps
-        // * Mipmaps from file
-        // * Live update texture? --- Support non-shader-optimal image layouts
-        // * Draw-to-texture ---- overload render(), render(Texture texture)
 
         /**
          * @brief Rebuild the swapchain.
