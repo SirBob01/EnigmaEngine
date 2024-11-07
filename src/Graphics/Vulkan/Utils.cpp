@@ -1110,7 +1110,9 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    VkFormat convert_texture_format(TextureFormat format) {
+    VkFormat convert_texture_format(TextureFormat format,
+                                    const VkSurfaceFormatKHR &surface_format,
+                                    VkFormat physical_depth_format) {
         switch (format) {
         case TextureFormat::R16_SFLOAT:
             return VK_FORMAT_R16_SFLOAT;
@@ -1122,6 +1124,12 @@ namespace Dynamo::Graphics::Vulkan {
             return VK_FORMAT_R8G8B8A8_UNORM;
         case TextureFormat::R8G8B8A8_SRGB:
             return VK_FORMAT_R8G8B8A8_SRGB;
+        case TextureFormat::ColorSurface:
+            // Depends on the swapchain state
+            return surface_format.format;
+        case TextureFormat::DepthSurface:
+            // Depends on the physical device features
+            return physical_depth_format;
         }
     }
 
@@ -1299,6 +1307,7 @@ namespace Dynamo::Graphics::Vulkan {
                            VkImageTiling tiling,
                            VkImageUsageFlags usage,
                            VkSampleCountFlagBits samples,
+                           VkImageCreateFlags flags,
                            unsigned mip_levels,
                            unsigned array_layers,
                            const QueueFamily *queue_families,
@@ -1310,6 +1319,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         VkImageCreateInfo image_info = {};
         image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        image_info.flags = flags;
         image_info.extent = extent;
         image_info.format = format;
         image_info.imageType = type;
@@ -1413,8 +1423,8 @@ namespace Dynamo::Graphics::Vulkan {
         sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
 
         sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        sampler_info.mipLodBias = 0.0f;
-        sampler_info.minLod = 0.0f;
+        sampler_info.mipLodBias = 0;
+        sampler_info.minLod = 0;
         sampler_info.maxLod = mip_levels;
 
         VkSampler sampler;

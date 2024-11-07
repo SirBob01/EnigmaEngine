@@ -1,4 +1,6 @@
 // Playground source file for testing new features.
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include <stb_image_resize.h>
 #include <string>
 #include <tiny_obj_loader.h>
 
@@ -96,8 +98,9 @@ layout(location = 0) in vec3 position;
 layout(location = 0) out vec3 tex_coord;
 
 void main() {
+    vec4 transformed = (transform.vp * vec4(position, 1.0));
+    gl_Position = transformed.xyww;
     tex_coord = position;
-    gl_Position = transform.vp * vec4(position, 1.0);
 }
 )";
 
@@ -160,10 +163,10 @@ static const Dynamo::Vec3 GEOM_OFFSETS[2] = {
     Dynamo::Vec3(0.5, 0, 0),
 };
 static const Dynamo::Vec3 GEOM_POSITIONS[4] = {
-    Dynamo::Vec3(-0.5, -0.5, 0.0),
-    Dynamo::Vec3(0.5, -0.5, 0.0),
-    Dynamo::Vec3(0.5, 0.5, 0.0),
-    Dynamo::Vec3(-0.5, 0.5, 0.0),
+    Dynamo::Vec3(-0.5, 0.0, -0.5),
+    Dynamo::Vec3(0.5, 0.0, -0.5),
+    Dynamo::Vec3(0.5, 0.0, 0.5),
+    Dynamo::Vec3(-0.5, 0.0, 0.5),
 };
 static const Dynamo::Vec2 GEOM_UVS[4] = {
     Dynamo::Vec2(0.0, 0.0),
@@ -217,7 +220,7 @@ int main() {
 
     amplify.gain = 0.5;
 
-    // Load the model
+    // Load the models
 
     // Build the model geometry
     Dynamo::Graphics::MeshDescriptor model_mesh_descriptor = load_mesh("../assets/models/viking_room.obj");
@@ -270,8 +273,6 @@ int main() {
     Dynamo::Graphics::MaterialDescriptor material_descriptor;
     material_descriptor.vertex = vertex;
     material_descriptor.fragment = fragment;
-    material_descriptor.topology = Dynamo::Graphics::Topology::Triangle;
-    material_descriptor.fill = Dynamo::Graphics::Fill::Face;
     material_descriptor.cull = Dynamo::Graphics::Cull::None;
     Dynamo::Graphics::Material material0 = app.renderer().build_material(material_descriptor);
     Dynamo::Graphics::Material material1 = app.renderer().build_material(material_descriptor);
@@ -280,9 +281,7 @@ int main() {
     Dynamo::Graphics::MaterialDescriptor skybox_material_descriptor;
     skybox_material_descriptor.vertex = skybox_vertex;
     skybox_material_descriptor.fragment = skybox_fragment;
-    skybox_material_descriptor.topology = Dynamo::Graphics::Topology::Triangle;
-    skybox_material_descriptor.fill = Dynamo::Graphics::Fill::Face;
-    skybox_material_descriptor.cull = Dynamo::Graphics::Cull::None;
+    skybox_material_descriptor.depth_test_op = Dynamo::Graphics::CompareOp::LessEqual;
     Dynamo::Graphics::Material skybox_material = app.renderer().build_material(skybox_material_descriptor);
 
     // Shared uniforms are constant across all materials, so changing either uniform will write to the same memory.
@@ -302,7 +301,7 @@ int main() {
     Dynamo::Graphics::Uniform skytransform_uniform = app.renderer().get_uniform(skybox_material, "transform").value();
     Dynamo::Graphics::Uniform cubemap_uniform = app.renderer().get_uniform(skybox_material, "cubemap").value();
 
-    // Build texture
+    // Build textures
     Dynamo::Graphics::TextureDescriptor texture_descriptor;
 
     int w, h, channels;
@@ -312,6 +311,32 @@ int main() {
     texture_descriptor.height = h;
     std::memcpy(texture_descriptor.texels.data(), buffer, w * h * 4);
     stbi_image_free(buffer);
+
+    texture_descriptor.mip_levels = 10;
+    unsigned lod_w = w;
+    unsigned lod_h = h;
+    for (unsigned i = 1; i < texture_descriptor.mip_levels; i++) {
+        unsigned n = lod_w * lod_h * 4;
+        unsigned dst_offset = texture_descriptor.texels.size();
+        unsigned src_offset = dst_offset - n;
+
+        unsigned next_w = std::max(lod_w / 2, 1U);
+        unsigned next_h = std::max(lod_h / 2, 1U);
+        unsigned next_n = next_w * next_h * 4;
+
+        texture_descriptor.texels.resize(dst_offset + next_n);
+        stbir_resize_uint8(texture_descriptor.texels.data() + src_offset,
+                           lod_w,
+                           lod_h,
+                           0,
+                           texture_descriptor.texels.data() + dst_offset,
+                           next_w,
+                           next_h,
+                           0,
+                           4);
+        lod_w = next_w;
+        lod_h = next_h;
+    }
 
     Dynamo::Graphics::Texture texture0 = app.renderer().build_texture(texture_descriptor);
     app.renderer().bind_texture(sampler_uniform0, texture0, 0);
@@ -332,31 +357,33 @@ int main() {
     }
     texture_descriptor.width = 2;
     texture_descriptor.height = 2;
+    texture_descriptor.mip_levels = 1; // Reset mipmaps
 
     Dynamo::Graphics::Texture texture1 = app.renderer().build_texture(texture_descriptor);
     app.renderer().bind_texture(sampler_uniform0, texture1, 1);
     app.renderer().bind_texture(sampler_uniform1, texture1, 1);
 
-    std::array<Dynamo::Color, 6> cubemap_colors = {
-        Dynamo::Color(1, 0, 0),
-        Dynamo::Color(0, 1, 0),
-        Dynamo::Color(0, 0, 1),
-        Dynamo::Color(1, 1, 0),
-        Dynamo::Color(0, 1, 1),
-        Dynamo::Color(1, 0, 1),
+    std::array<const char *, 6> skybox_paths = {
+        "../assets/textures/skybox/right.jpg",
+        "../assets/textures/skybox/left.jpg",
+        "../assets/textures/skybox/top.jpg",
+        "../assets/textures/skybox/bottom.jpg",
+        "../assets/textures/skybox/front.jpg",
+        "../assets/textures/skybox/back.jpg",
     };
     texture_descriptor.texels.clear();
-    for (const Dynamo::Color &color : cubemap_colors) {
-        texture_descriptor.texels.push_back(255 * color.r);
-        texture_descriptor.texels.push_back(255 * color.g);
-        texture_descriptor.texels.push_back(255 * color.b);
-        texture_descriptor.texels.push_back(255 * color.a);
+    for (const char *path : skybox_paths) {
+        unsigned buffer_offset = texture_descriptor.texels.size();
+        unsigned char *buffer = stbi_load(path, &w, &h, &channels, 4);
+        texture_descriptor.texels.resize(buffer_offset + w * h * 4);
+        std::memcpy(texture_descriptor.texels.data() + buffer_offset, buffer, w * h * 4);
+        stbi_image_free(buffer);
     }
-    texture_descriptor.width = 1;
-    texture_descriptor.height = 1;
-    // texture_descriptor.usage = Dynamo::Graphics::TextureUsage::Cubemap;
-    // Dynamo::Graphics::Texture cubemap_texture = app.renderer().build_texture(texture_descriptor);
-    // app.renderer().bind_texture(cubemap_uniform, cubemap_texture, 0);
+    texture_descriptor.width = w;
+    texture_descriptor.height = h;
+    texture_descriptor.usage = Dynamo::Graphics::TextureUsage::Cubemap;
+    Dynamo::Graphics::Texture cubemap_texture = app.renderer().build_texture(texture_descriptor);
+    app.renderer().bind_texture(cubemap_uniform, cubemap_texture, 0);
 
     // Build the models
     Dynamo::Graphics::Model model0;
@@ -370,6 +397,7 @@ int main() {
     Dynamo::Graphics::Model skybox;
     skybox.mesh = skybox_mesh;
     skybox.material = skybox_material;
+    skybox.group = 1;
 
     // Sound source
     Dynamo::Sound::Source source(music, sequence);
@@ -380,18 +408,15 @@ int main() {
         app.jukebox().play(source);
     });
 
-    Dynamo::Color a(0, 0, 0);
-    Dynamo::Color b(0, 0, 0);
-
     float dt_ave = 0;
     bool projection_toggle = true;
 
-    Dynamo::Vec3 camera_position(2, 2, 2);
-    Dynamo::Vec3 camera_direction = Dynamo::Vec3(-2, -2, -2).normalize();
-    Dynamo::Vec3 camera_up(0, 0, 1);
+    Dynamo::Vec3 camera_position(2, 2, -2);
+    Dynamo::Vec3 camera_direction;
+    Dynamo::Vec3 camera_up(0, 1, 0);
 
-    float yaw = -135;
-    float pitch = -30;
+    float yaw = 135;
+    float pitch = -35;
 
     Dynamo::Vec2 prev_mouse = app.display().get_window_size() / 2;
     while (app.is_running()) {
@@ -444,15 +469,15 @@ int main() {
         float xoffset = (mouse_position.x - prev_mouse.x) * 0.1;
         float yoffset = (mouse_position.y - prev_mouse.y) * 0.1;
         prev_mouse = mouse_position;
-        yaw -= xoffset;
+        yaw += xoffset;
         pitch -= yoffset;
 
         if (pitch > 89.0f) pitch = 89.0f;
         if (pitch < -89.0f) pitch = -89.0f;
 
         camera_direction.x = cos(Dynamo::to_radians(yaw)) * cos(Dynamo::to_radians(pitch));
-        camera_direction.z = sin(Dynamo::to_radians(pitch));
-        camera_direction.y = sin(Dynamo::to_radians(yaw)) * cos(Dynamo::to_radians(pitch));
+        camera_direction.y = sin(Dynamo::to_radians(pitch));
+        camera_direction.z = sin(Dynamo::to_radians(yaw)) * cos(Dynamo::to_radians(pitch));
         camera_direction.normalize();
 
         unsigned long long frames = app.clock().frames();
@@ -491,8 +516,9 @@ int main() {
         Texture texture;
 
         timer.time = Dynamo::to_radians(frames);
-        transform.mvp =
-            camera.projection * camera.view * Dynamo::Mat4({0, 0, 0}, Dynamo::Quaternion({0, 0, 1}, 0), {1, 1, 1});
+        // Convert z-up model to y-up
+        transform.mvp = camera.projection * camera.view *
+                        Dynamo::Mat4({0, 0, 0}, Dynamo::Quaternion({1, 0, 0}, -M_PI_2), {1, 1, 1});
         texture.index = 0;
         app.renderer().write_uniform(transform_uniform0, &transform);
         app.renderer().write_uniform(time_uniform0, &timer);
@@ -500,7 +526,7 @@ int main() {
 
         timer.time = -timer.time;
         transform.mvp = camera.projection * camera.view *
-                        Dynamo::Mat4({0, 0, -0.5}, Dynamo::Quaternion({0, 0, 1}, timer.time), {1, 1, 1});
+                        Dynamo::Mat4({0, -0.5, 0}, Dynamo::Quaternion({0, 1, 0}, timer.time), {1, 1, 1});
         texture.index = 1;
         app.renderer().write_uniform(transform_uniform1, &transform);
         app.renderer().write_uniform(time_uniform1, &timer);
@@ -508,6 +534,7 @@ int main() {
 
         SkyboxTransform skybox_transform;
         Dynamo::Mat4 skybox_view = camera.view;
+        // Ignore translation component
         skybox_view.values[12] = 0;
         skybox_view.values[13] = 0;
         skybox_view.values[14] = 0;
@@ -516,13 +543,10 @@ int main() {
         skybox_transform.vp = camera.projection * skybox_view;
         app.renderer().write_uniform(skytransform_uniform, &skybox_transform);
 
-        // Draw the model
+        // Draw the models
         app.renderer().draw(model0);
         app.renderer().draw(model1);
-        // app.renderer().draw(skybox);
-
-        float x_t = mouse_position.x / display_size.x;
-        app.renderer().set_clear(a.lerp(b, x_t));
+        app.renderer().draw(skybox);
 
         app.update();
     }

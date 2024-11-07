@@ -21,6 +21,8 @@ namespace Dynamo::Graphics {
         R8G8B8_UNORM,
         R8G8B8A8_UNORM,
         R8G8B8A8_SRGB,
+        ColorSurface,
+        DepthSurface,
     };
 
     /**
@@ -29,6 +31,7 @@ namespace Dynamo::Graphics {
      */
     enum class TextureUsage {
         Static,
+        Cubemap,
         ColorTarget,
         DepthStencilTarget,
     };
@@ -88,6 +91,10 @@ namespace Dynamo::Graphics {
         /**
          * @brief Mipmap levels.
          *
+         * The texel buffer must hold the LODs in contiguous memory.
+         *
+         * Dimension_n = max(Dimension_n-1 / 2, 1)
+         *
          */
         unsigned mip_levels = 1;
 
@@ -102,7 +109,7 @@ namespace Dynamo::Graphics {
         /**
          * @brief Usage of the texture.
          *
-         * Allows a texture to be used as a render target.
+         * If usage is Cubemap, the texel buffer must contain 6 sub-images of uniform dimensions.
          *
          */
         TextureUsage usage = TextureUsage::Static;
@@ -111,13 +118,13 @@ namespace Dynamo::Graphics {
          * @brief Minification filter.
          *
          */
-        TextureFilter min_filter = TextureFilter::Nearest;
+        TextureFilter min_filter = TextureFilter::Linear;
 
         /**
          * @brief Magnification filter.
          *
          */
-        TextureFilter mag_filter = TextureFilter::Nearest;
+        TextureFilter mag_filter = TextureFilter::Linear;
 
         /**
          * @brief How U coordinates are addressed outside [0, 1).

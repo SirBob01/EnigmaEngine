@@ -37,7 +37,9 @@ namespace Dynamo::Graphics::Vulkan {
 
     VkCompareOp convert_compare_op(CompareOp op);
 
-    VkFormat convert_texture_format(TextureFormat format);
+    VkFormat convert_texture_format(TextureFormat format,
+                                    const VkSurfaceFormatKHR &surface_format,
+                                    VkFormat physical_depth_format);
 
     VkFilter convert_texture_filter(TextureFilter filter);
 
@@ -65,6 +67,7 @@ namespace Dynamo::Graphics::Vulkan {
                            VkImageTiling tiling,
                            VkImageUsageFlags usage,
                            VkSampleCountFlagBits samples,
+                           VkImageCreateFlags flags,
                            unsigned mip_levels,
                            unsigned array_layers,
                            const QueueFamily *queue_families,
