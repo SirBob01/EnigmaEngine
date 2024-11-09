@@ -17,6 +17,7 @@ add_subdirectory("submodules/fmt")
 add_subdirectory("submodules/glfw")
 add_subdirectory("submodules/portaudio")
 add_subdirectory("submodules/tinyobjloader")
+add_subdirectory("submodules/freetype")
 
 set(SPIRV_REFLECT_EXECUTABLE OFF CACHE BOOL "SPIRV-Reflect executable")
 set(SPIRV_REFLECT_EXAMPLES OFF CACHE BOOL "SPIRV-Reflect examples")

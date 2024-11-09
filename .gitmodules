@@ -25,3 +25,6 @@
 [submodule "submodules/shaderc"]
 	path = submodules/shaderc
 	url = git@github.com:SirBob01/shaderc.git
+[submodule "submodules/freetype"]
+	path = submodules/freetype
+	url = https://gitlab.freedesktop.org/freetype/freetype.git
