@@ -148,6 +148,11 @@ namespace Dynamo::Asset {
             Log::error("Could not load font: {}", filepath);
         }
 
+        if (!(font.face->face_flags & FT_FACE_FLAG_SCALABLE)) {
+            FT_Done_Face(font.face);
+            Log::error("Font must be scalable: {}", filepath);
+        }
+
         // Null glyph
         int flags = FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
         error = FT_Load_Glyph(font.face, 0, flags);
