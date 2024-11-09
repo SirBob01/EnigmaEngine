@@ -3,7 +3,7 @@
 namespace Dynamo {
     Application::Application(const ApplicationSettings &settings) :
         _display(settings.title, settings.window_width, settings.window_height),
-        _renderer(_display, settings.root_asset_directory), _ui(_renderer, _display.input()) {
+        _renderer(_display, settings.root_asset_directory), _ui(_display, _renderer) {
         // Run audio on a separate thread
         _audio_thread = std::thread([&]() {
             while (is_running()) {
@@ -38,6 +38,11 @@ namespace Dynamo {
     void Application::update() {
         // Poll for input
         _display.input().poll();
+
+        // Draw UI elements
+        _ui.draw();
+
+        // Render and present the swapchain
         _renderer.render();
 
         // Tick
