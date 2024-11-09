@@ -5,10 +5,10 @@
 
 namespace Dynamo::Graphics {
     /**
-     * @brief Material handle.
+     * @brief Pipeline handle.
      *
      */
-    DYN_DEFINE_ID_TYPE(Material);
+    DYN_DEFINE_ID_TYPE(Pipeline);
 
     /**
      * @brief Uniform variable handle.
@@ -62,10 +62,10 @@ namespace Dynamo::Graphics {
     };
 
     /**
-     * @brief Material descriptor.
+     * @brief Pipeline descriptor.
      *
      */
-    struct MaterialDescriptor {
+    struct PipelineDescriptor {
         /**
          * @brief Vertex shader handle.
          *

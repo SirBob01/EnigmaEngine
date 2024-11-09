@@ -6,7 +6,7 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include <Graphics/Material.hpp>
+#include <Graphics/Pipeline.hpp>
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
 #include <Graphics/Vulkan/UniformRegistry.hpp>
@@ -99,16 +99,16 @@ namespace Dynamo::Graphics::Vulkan {
         };
     };
 
-    struct MaterialInstance {
+    struct PipelineInstance {
         VkPipelineLayout layout;
-        VkPipeline pipeline;
+        VkPipeline handle;
         std::vector<Uniform> uniforms;
         std::vector<VkDescriptorSet> descriptor_sets;
         std::vector<VkPushConstantRange> push_constant_ranges;
         std::vector<unsigned> push_constant_offsets;
     };
 
-    class MaterialRegistry {
+    class PipelineRegistry {
         VkDevice _device;
         const PhysicalDevice *_physical;
 
@@ -118,20 +118,20 @@ namespace Dynamo::Graphics::Vulkan {
         std::unordered_map<PipelineLayoutSettings, VkPipelineLayout, PipelineLayoutSettings::Hash> _layouts;
         std::unordered_map<GraphicsPipelineSettings, VkPipeline, GraphicsPipelineSettings::Hash> _pipelines;
 
-        SparseArray<Material, MaterialInstance> _instances;
+        SparseArray<Pipeline, PipelineInstance> _instances;
 
       public:
-        MaterialRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename);
-        MaterialRegistry() = default;
+        PipelineRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename);
+        PipelineRegistry() = default;
 
-        Material build(const MaterialDescriptor &descriptor,
+        Pipeline build(const PipelineDescriptor &descriptor,
                        VkRenderPass renderpass,
                        const Swapchain &swapchain,
                        const ShaderRegistry &shaders,
                        UniformRegistry &uniforms,
                        MemoryPool &memory);
 
-        MaterialInstance &get(Material material);
+        PipelineInstance &get(Pipeline pipeline);
 
         void destroy();
 
