@@ -481,12 +481,11 @@ int main() {
         camera_direction.normalize();
 
         unsigned long long frames = app.clock().frames();
-        unsigned update_rate = 32;
+        unsigned update_rate = 64;
         dt_ave += app.clock().delta().count();
         if (frames % update_rate == 0) {
             dt_ave = dt_ave / update_rate;
-            unsigned fps = 1.0 / dt_ave;
-            app.display().set_title(std::to_string(fps) + " fps");
+            app.display().set_title(std::to_string(dt_ave * 1000) + " ms");
             dt_ave = 0;
         }
 

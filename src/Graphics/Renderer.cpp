@@ -26,7 +26,6 @@ namespace Dynamo::Graphics {
         _uniforms = UniformRegistry(_device, _physical, _transfer_pool);
         _textures = TextureRegistry(_device, _physical, _transfer_pool);
         _materials = MaterialRegistry(_device, _physical, root_asset_directory + "/vulkan_cache.bin");
-        _framebuffers = FramebufferCache(_device);
 
         // Setup the color buffer
         TextureDescriptor color_descriptor;
@@ -43,6 +42,12 @@ namespace Dynamo::Graphics {
         depth_stencil_descriptor.usage = TextureUsage::DepthStencilTarget;
         depth_stencil_descriptor.format = TextureFormat::DepthSurface;
         _depth_stencil_texture = build_texture(depth_stencil_descriptor);
+
+        // Renderpass and framebuffers
+        VkFormat surface_color_format = _swapchain.surface_format.format;
+        VkFormat surface_depth_format = _physical.depth_format;
+        _forwardpass = VkRenderPass_create(_device, _physical.samples, surface_color_format, surface_depth_format);
+        rebuild_framebuffers();
 
         // Frame contexts
         _frame_contexts = FrameContextList(_device, _graphics_pool);
@@ -67,7 +72,6 @@ namespace Dynamo::Graphics {
 
         // High-level objects
         _frame_contexts.destroy();
-        _framebuffers.destroy();
         _materials.destroy();
         _textures.destroy(_memory);
         _uniforms.destroy(_memory);
@@ -77,6 +81,10 @@ namespace Dynamo::Graphics {
         _swapchain.destroy();
 
         // Vulkan core objects
+        for (VkFramebuffer framebuffer : _framebuffers) {
+            vkDestroyFramebuffer(_device, framebuffer, nullptr);
+        }
+        vkDestroyRenderPass(_device, _forwardpass, nullptr);
         vkDestroyCommandPool(_device, _graphics_pool, nullptr);
         vkDestroyCommandPool(_device, _transfer_pool, nullptr);
         vkDestroyDevice(_device, nullptr);
@@ -87,10 +95,34 @@ namespace Dynamo::Graphics {
         vkDestroyInstance(_instance, nullptr);
     }
 
+    void Renderer::rebuild_framebuffers() {
+        for (VkFramebuffer framebuffer : _framebuffers) {
+            vkDestroyFramebuffer(_device, framebuffer, nullptr);
+        }
+        _framebuffers.clear();
+
+        for (VkImageView view : _swapchain.views) {
+            std::array<VkImageView, 3> views;
+            unsigned count = 0;
+            if (_physical.samples != VK_SAMPLE_COUNT_1_BIT) {
+                views[count++] = _textures.get(_color_texture).view;
+                views[count++] = _textures.get(_depth_stencil_texture).view;
+                views[count++] = view;
+            } else {
+                views[count++] = view;
+                views[count++] = _textures.get(_depth_stencil_texture).view;
+            }
+            _framebuffers.push_back(VkFramebuffer_create(_device,
+                                                         _forwardpass,
+                                                         _swapchain.extent,
+                                                         views.begin(),
+                                                         count,
+                                                         _swapchain.array_layers));
+        }
+    }
+
     void Renderer::rebuild_swapchain() {
-        // Destroy old swapchain resources
         vkDeviceWaitIdle(_device);
-        _framebuffers.destroy();
 
         // Rebuild the swapchain
         _swapchain = Swapchain(_device, _physical, _display, _swapchain);
@@ -112,6 +144,9 @@ namespace Dynamo::Graphics {
         depth_stencil_descriptor.format = TextureFormat::DepthSurface;
         destroy_texture(_depth_stencil_texture);
         _depth_stencil_texture = build_texture(depth_stencil_descriptor);
+
+        // Rebuild framebuffers
+        rebuild_framebuffers();
     }
 
     void Renderer::set_clear(Color color, float depth, unsigned stencil) {
@@ -139,7 +174,7 @@ namespace Dynamo::Graphics {
     void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture, _memory); }
 
     Material Renderer::build_material(const MaterialDescriptor &descriptor) {
-        return _materials.build(descriptor, _swapchain, _shaders, _uniforms, _memory);
+        return _materials.build(descriptor, _forwardpass, _swapchain, _shaders, _uniforms, _memory);
     }
 
     void Renderer::destroy_material(Material material) {
@@ -173,9 +208,6 @@ namespace Dynamo::Graphics {
     void Renderer::draw(const Model &model) { _models.push_back(model); }
 
     void Renderer::render() {
-        const VkImageView color_view = _textures.get(_color_texture).view;
-        const VkImageView depth_stencil_view = _textures.get(_depth_stencil_texture).view;
-
         const FrameContext &frame = _frame_contexts.next();
         vkWaitForFences(_device, 1, &frame.sync_fence, VK_TRUE, UINT64_MAX);
 
@@ -225,41 +257,23 @@ namespace Dynamo::Graphics {
         scissor.offset.y = 0;
         vkCmdSetScissor(frame.command_buffer, 0, 1, &scissor);
 
-        VkRenderPass prev_renderpass = VK_NULL_HANDLE;
+        VkRenderPassBeginInfo renderpass_begin_info = {};
+        renderpass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderpass_begin_info.renderPass = _forwardpass;
+        renderpass_begin_info.renderArea.extent = _swapchain.extent;
+        renderpass_begin_info.renderArea.offset.x = 0;
+        renderpass_begin_info.renderArea.offset.y = 0;
+        renderpass_begin_info.clearValueCount = _clear.size();
+        renderpass_begin_info.pClearValues = _clear.data();
+        renderpass_begin_info.framebuffer = _framebuffers[image_index];
+        vkCmdBeginRenderPass(frame.command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
         VkPipeline prev_pipeline = VK_NULL_HANDLE;
         Mesh prev_mesh = reinterpret_cast<Mesh>(-1);
+
         for (Model model : _models) {
             const MeshInstance &mesh = _meshes.get(model.mesh);
             const MaterialInstance &material = _materials.get(model.material);
-
-            // Rebind renderpass if changed
-            if (prev_renderpass != material.renderpass) {
-                FramebufferSettings framebuffer_settings;
-                framebuffer_settings.color_view = color_view;
-                framebuffer_settings.depth_stencil_view = depth_stencil_view;
-                framebuffer_settings.color_resolve_view = _swapchain.views[image_index];
-                framebuffer_settings.extent = _swapchain.extent;
-                framebuffer_settings.renderpass = material.renderpass;
-                framebuffer_settings.layers = 1; // TODO: derive from render target image
-                VkFramebuffer framebuffer = _framebuffers.get(framebuffer_settings);
-
-                VkRenderPassBeginInfo renderpass_begin_info = {};
-                renderpass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                renderpass_begin_info.renderPass = material.renderpass;
-                renderpass_begin_info.renderArea.extent = _swapchain.extent;
-                renderpass_begin_info.renderArea.offset.x = 0;
-                renderpass_begin_info.renderArea.offset.y = 0;
-                renderpass_begin_info.clearValueCount = _clear.size();
-                renderpass_begin_info.pClearValues = _clear.data();
-                renderpass_begin_info.framebuffer = framebuffer;
-
-                // End the previous renderpass if active
-                if (prev_renderpass != VK_NULL_HANDLE) {
-                    vkCmdEndRenderPass(frame.command_buffer);
-                }
-                prev_renderpass = material.renderpass;
-                vkCmdBeginRenderPass(frame.command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-            }
 
             // Rebind pipeline if changed
             if (prev_pipeline != material.pipeline) {
@@ -315,10 +329,8 @@ namespace Dynamo::Graphics {
         }
         _models.clear();
 
-        // End last renderpass
-        if (prev_renderpass != VK_NULL_HANDLE) {
-            vkCmdEndRenderPass(frame.command_buffer);
-        }
+        // End renderpass
+        vkCmdEndRenderPass(frame.command_buffer);
         VkResult_check("End Command Buffer", vkEndCommandBuffer(frame.command_buffer));
 
         // Submit commands

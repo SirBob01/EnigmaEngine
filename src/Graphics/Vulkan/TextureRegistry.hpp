@@ -17,14 +17,15 @@ namespace Dynamo::Graphics::Vulkan {
         VkSamplerAddressMode w_address_mode;
         VkFilter min_filter;
         VkFilter mag_filter;
+        VkSamplerMipmapMode mipmap_mode;
         VkBorderColor border_color;
         unsigned mip_levels;
 
         bool operator==(const SamplerSettings &other) const {
             return u_address_mode == other.u_address_mode && v_address_mode == other.v_address_mode &&
                    w_address_mode == other.w_address_mode && min_filter == other.min_filter &&
-                   mag_filter == other.mag_filter && border_color == other.border_color &&
-                   mip_levels == other.mip_levels;
+                   mag_filter == other.mag_filter && mipmap_mode == other.mipmap_mode &&
+                   border_color == other.border_color && mip_levels == other.mip_levels;
         }
 
         struct Hash {
@@ -34,10 +35,12 @@ namespace Dynamo::Graphics::Vulkan {
                 size_t hash2 = std::hash<VkSamplerAddressMode>{}(settings.w_address_mode);
                 size_t hash3 = std::hash<VkFilter>{}(settings.min_filter);
                 size_t hash4 = std::hash<VkFilter>{}(settings.mag_filter);
-                size_t hash5 = std::hash<VkBorderColor>{}(settings.border_color);
-                size_t hash6 = std::hash<unsigned>{}(settings.mip_levels);
+                size_t hash5 = std::hash<VkSamplerMipmapMode>{}(settings.mipmap_mode);
+                size_t hash6 = std::hash<VkBorderColor>{}(settings.border_color);
+                size_t hash7 = std::hash<unsigned>{}(settings.mip_levels);
 
-                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4) ^ (hash5 << 5) ^ (hash6 << 6);
+                return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4) ^ (hash5 << 5) ^ (hash6 << 6) ^
+                       (hash7 << 7);
             }
         };
     };

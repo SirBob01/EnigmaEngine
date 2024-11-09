@@ -43,6 +43,8 @@ namespace Dynamo::Graphics::Vulkan {
 
     VkFilter convert_texture_filter(TextureFilter filter);
 
+    VkSamplerMipmapMode convert_texture_mipmap_filter(TextureFilter filter);
+
     VkSamplerAddressMode convert_texture_address_mode(TextureAddressMode address_mode);
 
     VkInstance VkInstance_create(const Display &display);
@@ -92,6 +94,7 @@ namespace Dynamo::Graphics::Vulkan {
                                VkSamplerAddressMode address_mode_w,
                                VkFilter mag_filter,
                                VkFilter min_filter,
+                               VkSamplerMipmapMode mipmap_mode,
                                VkBorderColor border_color,
                                float max_anisotropy,
                                unsigned mip_levels);
@@ -107,14 +110,11 @@ namespace Dynamo::Graphics::Vulkan {
 
     VkShaderModule VkShaderModule_create(VkDevice device, const std::vector<uint32_t> &bytecode);
 
+    // Very simple forward render pass configuration
     VkRenderPass VkRenderPass_create(VkDevice device,
                                      VkSampleCountFlagBits samples,
                                      VkFormat color_format,
-                                     VkAttachmentLoadOp color_load_op,
-                                     VkAttachmentStoreOp color_store_op,
-                                     VkFormat depth_stencil_format,
-                                     VkAttachmentLoadOp depth_stencil_load_op,
-                                     VkAttachmentStoreOp depth_stencil_store_op);
+                                     VkFormat depth_stencil_format);
 
     VkPipeline VkPipeline_create(VkDevice device,
                                  VkPipelineCache cache,

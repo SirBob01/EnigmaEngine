@@ -79,6 +79,7 @@ namespace Dynamo::Graphics::Vulkan {
         sampler_settings.w_address_mode = convert_texture_address_mode(descriptor.w_address_mode);
         sampler_settings.mag_filter = convert_texture_filter(descriptor.mag_filter);
         sampler_settings.min_filter = convert_texture_filter(descriptor.min_filter);
+        sampler_settings.mipmap_mode = convert_texture_mipmap_filter(descriptor.mipmap_filter);
         sampler_settings.border_color = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
         sampler_settings.mip_levels = descriptor.mip_levels;
 
@@ -92,6 +93,7 @@ namespace Dynamo::Graphics::Vulkan {
                                                 sampler_settings.w_address_mode,
                                                 sampler_settings.mag_filter,
                                                 sampler_settings.min_filter,
+                                                sampler_settings.mipmap_mode,
                                                 sampler_settings.border_color,
                                                 _physical->properties.limits.maxSamplerAnisotropy,
                                                 sampler_settings.mip_levels);
@@ -135,14 +137,14 @@ namespace Dynamo::Graphics::Vulkan {
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             subresources.layerCount = 1;
             format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
-            samples = _physical->msaa_samples;
+            samples = _physical->samples;
             break;
         case TextureUsage::DepthStencilTarget:
             usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
             subresources.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
             subresources.layerCount = 1;
             format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
-            samples = _physical->msaa_samples;
+            samples = _physical->samples;
             break;
         }
 

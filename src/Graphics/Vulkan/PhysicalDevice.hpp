@@ -29,7 +29,7 @@ namespace Dynamo::Graphics::Vulkan {
         VkPhysicalDeviceFeatures features;
 
         VkFormat depth_format;
-        VkSampleCountFlagBits msaa_samples;
+        VkSampleCountFlagBits samples;
 
         QueueFamily graphics_queues;
         QueueFamily present_queues;

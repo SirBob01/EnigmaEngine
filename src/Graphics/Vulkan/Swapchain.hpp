@@ -19,6 +19,8 @@ namespace Dynamo::Graphics::Vulkan {
         std::vector<VkImage> images;
         std::vector<VkImageView> views;
 
+        unsigned array_layers;
+
         Swapchain(VkDevice device,
                   const PhysicalDevice &physical,
                   const Display &display,
