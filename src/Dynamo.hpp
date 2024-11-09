@@ -1,5 +1,6 @@
 #include <Application.hpp>
 #include <Asset/Sound.hpp>
+#include <Asset/Texture.hpp>
 #include <Clock.hpp>
 #include <Display.hpp>
 #include <ECS/World.hpp>

@@ -1,10 +1,8 @@
 #pragma once
 
-#include <sndfile.hh>
-
 #include <Sound/Buffer.hpp>
 
-namespace Dynamo {
+namespace Dynamo::Asset {
     /**
      * @brief Load a sound file.
      *
@@ -12,4 +10,4 @@ namespace Dynamo {
      * @return Sound::Buffer
      */
     Sound::Buffer load_sound(const std::string filepath);
-} // namespace Dynamo
+} // namespace Dynamo::Asset

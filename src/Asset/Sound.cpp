@@ -1,8 +1,10 @@
+#include <sndfile.hh>
+
 #include <Asset/Sound.hpp>
 #include <Sound/DSP/Resample.hpp>
 #include <Utils/Log.hpp>
 
-namespace Dynamo {
+namespace Dynamo::Asset {
     Sound::Buffer load_sound(const std::string filepath) {
         SndfileHandle file(filepath.c_str(), SFM_READ, 0, 1, 0);
         if (file.error()) {
@@ -34,4 +36,4 @@ namespace Dynamo {
 
         return resampled;
     }
-} // namespace Dynamo
+} // namespace Dynamo::Asset
