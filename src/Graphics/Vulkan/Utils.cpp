@@ -1142,6 +1142,15 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
+    VkSamplerMipmapMode convert_texture_mipmap_filter(TextureFilter filter) {
+        switch (filter) {
+        case TextureFilter::Nearest:
+            return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        case TextureFilter::Linear:
+            return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        }
+    }
+
     VkSamplerAddressMode convert_texture_address_mode(TextureAddressMode address_mode) {
         switch (address_mode) {
         case TextureAddressMode::Repeat:
@@ -1405,6 +1414,7 @@ namespace Dynamo::Graphics::Vulkan {
                                VkSamplerAddressMode address_mode_w,
                                VkFilter mag_filter,
                                VkFilter min_filter,
+                               VkSamplerMipmapMode mipmap_mode,
                                VkBorderColor border_color,
                                float max_anisotropy,
                                unsigned mip_levels) {
@@ -1422,7 +1432,7 @@ namespace Dynamo::Graphics::Vulkan {
         sampler_info.compareEnable = VK_FALSE;
         sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
 
-        sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        sampler_info.mipmapMode = mipmap_mode;
         sampler_info.mipLodBias = 0;
         sampler_info.minLod = 0;
         sampler_info.maxLod = mip_levels;
@@ -1477,20 +1487,11 @@ namespace Dynamo::Graphics::Vulkan {
     VkRenderPass VkRenderPass_create(VkDevice device,
                                      VkSampleCountFlagBits samples,
                                      VkFormat color_format,
-                                     VkAttachmentLoadOp color_load_op,
-                                     VkAttachmentStoreOp color_store_op,
-                                     VkFormat depth_stencil_format,
-                                     VkAttachmentLoadOp depth_stencil_load_op,
-                                     VkAttachmentStoreOp depth_stencil_store_op) {
-        // Very simple render pass configuration
-        // - 1 color attachment
-        // - 1 depth-stencil attachment
-        // - 1 color-resolve attachment (if samples > 1)
-
+                                     VkFormat depth_stencil_format) {
         VkAttachmentDescription color = {};
         color.format = color_format;
-        color.loadOp = color_load_op;
-        color.storeOp = color_store_op;
+        color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         color.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1502,8 +1503,8 @@ namespace Dynamo::Graphics::Vulkan {
 
         VkAttachmentDescription depth_stencil = {};
         depth_stencil.format = depth_stencil_format;
-        depth_stencil.loadOp = depth_stencil_load_op;
-        depth_stencil.storeOp = depth_stencil_store_op;
+        depth_stencil.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depth_stencil.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         depth_stencil.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depth_stencil.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depth_stencil.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;

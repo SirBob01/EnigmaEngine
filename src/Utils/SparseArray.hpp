@@ -12,9 +12,6 @@ namespace Dynamo {
     /**
      * @brief Data structure that allows O(1) insertion, removal, and access of a value by a unique handle identifier.
      *
-     * Unlike SparseSets, Ids are tracked and assigned internally. This means that there is no risk of extreme
-     * overallocation of entries.
-     *
      * @tparam Id
      * @tparam T
      */

@@ -19,6 +19,7 @@ namespace Dynamo::Graphics::Vulkan {
                                    options.capabilities.maxImageExtent.height);
 
         // Select optimal surface format
+        surface_format = options.formats[0];
         for (VkSurfaceFormatKHR query : options.formats) {
             if (query.format == VK_FORMAT_B8G8R8A8_SRGB && query.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 surface_format = query;
@@ -104,6 +105,9 @@ namespace Dynamo::Graphics::Vulkan {
             VkImageView view = VkImageView_create(device, image, format, VK_IMAGE_VIEW_TYPE_2D, subresources);
             views.push_back(view);
         }
+
+        // Number of array layers
+        array_layers = swapchain_info.imageArrayLayers;
     }
 
     void Swapchain::destroy() {

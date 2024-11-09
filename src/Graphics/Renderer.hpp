@@ -7,7 +7,6 @@
 #include <Graphics/Model.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/FrameContext.hpp>
-#include <Graphics/Vulkan/FramebufferCache.hpp>
 #include <Graphics/Vulkan/MaterialRegistry.hpp>
 #include <Graphics/Vulkan/MeshRegistry.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
@@ -45,24 +44,20 @@ namespace Dynamo::Graphics {
         MaterialRegistry _materials;
         UniformRegistry _uniforms;
         TextureRegistry _textures;
-        FramebufferCache _framebuffers;
 
         Texture _color_texture;
         Texture _depth_stencil_texture;
 
+        VkRenderPass _forwardpass;
+        std::vector<VkFramebuffer> _framebuffers;
+        std::array<VkClearValue, 2> _clear;
+
         FrameContextList _frame_contexts;
 
         std::vector<Model> _models;
-        std::array<VkClearValue, 2> _clear;
 
         // Important TODO:
-        // * Fix MSAA handling
-        //      - Renderpass attachments are different for sample count = 1 (i hate this)
-        //      - We currently assume that sample count > 1, will crash otherwise
-        // * Default VkRenderPass? Draw-to-texture?
-        //      - Need a good renderpass abstraction system
-        //      - Change the API to build renderpasses and begin/end them at draw time?
-        //      - This class will become a "GraphicsBackend", build user-facing renderer on top of this
+        // * Draw-to-texture?
         // * Decouple Material from Uniforms?
         //      - Material creation is expensive since we need to hash the descriptors (these are huge)
         //      - Material should be a Pipeline/RenderPass/Layout triplet + metadata for uniform allocation
@@ -71,10 +66,8 @@ namespace Dynamo::Graphics {
         // * Customizable stencil operations
         // * Memory defragmentation stategy
 
-        /**
-         * @brief Rebuild the swapchain.
-         *
-         */
+        void rebuild_framebuffers();
+
         void rebuild_swapchain();
 
       public:

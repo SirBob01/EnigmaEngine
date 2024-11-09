@@ -127,6 +127,12 @@ namespace Dynamo::Graphics {
         TextureFilter mag_filter = TextureFilter::Linear;
 
         /**
+         * @brief Mipmap filter.
+         *
+         */
+        TextureFilter mipmap_filter = TextureFilter::Linear;
+
+        /**
          * @brief How U coordinates are addressed outside [0, 1).
          *
          */

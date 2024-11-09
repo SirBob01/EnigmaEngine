@@ -24,6 +24,7 @@ namespace Dynamo::Graphics::Vulkan {
     }
 
     Material MaterialRegistry::build(const MaterialDescriptor &descriptor,
+                                     VkRenderPass renderpass,
                                      const Swapchain &swapchain,
                                      const ShaderRegistry &shaders,
                                      UniformRegistry &uniforms,
@@ -72,37 +73,15 @@ namespace Dynamo::Graphics::Vulkan {
             _layouts.emplace(layout_settings, instance.layout);
         }
 
-        // Build render pass
-        // TODO: Do we need a system for this? Maybe once we tackle render-to-textures
-        RenderPassSettings renderpass_settings;
-        renderpass_settings.color_format = swapchain.surface_format.format;
-        renderpass_settings.color_load_op = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        renderpass_settings.color_store_op = VK_ATTACHMENT_STORE_OP_STORE;
-        auto renderpass_it = _renderpasses.find(renderpass_settings);
-        if (renderpass_it != _renderpasses.end()) {
-            instance.renderpass = renderpass_it->second;
-        } else {
-            instance.renderpass = VkRenderPass_create(_device,
-                                                      _physical->msaa_samples,
-                                                      renderpass_settings.color_format,
-                                                      renderpass_settings.color_load_op,
-                                                      renderpass_settings.color_store_op,
-                                                      _physical->depth_format,
-                                                      VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                      VK_ATTACHMENT_STORE_OP_STORE);
-            _renderpasses.emplace(renderpass_settings, instance.renderpass);
-        }
-
         // Build pipeline
         GraphicsPipelineSettings pipeline_settings;
         pipeline_settings.layout = instance.layout;
-        pipeline_settings.renderpass = instance.renderpass;
         pipeline_settings.vertex = vertex_module.handle;
         pipeline_settings.fragment = fragment_module.handle;
         pipeline_settings.topology = convert_topology(descriptor.topology);
         pipeline_settings.fill = convert_fill(descriptor.fill);
         pipeline_settings.cull = convert_cull(descriptor.cull);
-        pipeline_settings.samples = _physical->msaa_samples;
+        pipeline_settings.samples = _physical->samples;
         pipeline_settings.color_mask = 0;
         if (descriptor.color_mask.r) {
             pipeline_settings.color_mask |= VK_COLOR_COMPONENT_R_BIT;
@@ -126,7 +105,7 @@ namespace Dynamo::Graphics::Vulkan {
             instance.pipeline = VkPipeline_create(_device,
                                                   _pipeline_cache,
                                                   pipeline_settings.layout,
-                                                  pipeline_settings.renderpass,
+                                                  renderpass,
                                                   pipeline_settings.vertex,
                                                   pipeline_settings.fragment,
                                                   pipeline_settings.topology,
@@ -162,12 +141,6 @@ namespace Dynamo::Graphics::Vulkan {
             vkDestroyPipelineLayout(_device, layout, nullptr);
         }
         _layouts.clear();
-
-        // Clean up renderpasses
-        for (const auto &[key, renderpass] : _renderpasses) {
-            vkDestroyRenderPass(_device, renderpass, nullptr);
-        }
-        _renderpasses.clear();
 
         // Clear all instances
         _instances.clear();

@@ -38,24 +38,24 @@ namespace Dynamo::Graphics::Vulkan {
         VkSampleCountFlags depth_samples = properties.limits.framebufferDepthSampleCounts;
         VkSampleCountFlags counts = color_samples & depth_samples;
 
-        msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+        samples = VK_SAMPLE_COUNT_1_BIT;
         if (counts & VK_SAMPLE_COUNT_64_BIT) {
-            msaa_samples = VK_SAMPLE_COUNT_64_BIT;
+            samples = VK_SAMPLE_COUNT_64_BIT;
         }
         if (counts & VK_SAMPLE_COUNT_32_BIT) {
-            msaa_samples = VK_SAMPLE_COUNT_32_BIT;
+            samples = VK_SAMPLE_COUNT_32_BIT;
         }
         if (counts & VK_SAMPLE_COUNT_16_BIT) {
-            msaa_samples = VK_SAMPLE_COUNT_16_BIT;
+            samples = VK_SAMPLE_COUNT_16_BIT;
         }
         if (counts & VK_SAMPLE_COUNT_8_BIT) {
-            msaa_samples = VK_SAMPLE_COUNT_8_BIT;
+            samples = VK_SAMPLE_COUNT_8_BIT;
         }
         if (counts & VK_SAMPLE_COUNT_4_BIT) {
-            msaa_samples = VK_SAMPLE_COUNT_4_BIT;
+            samples = VK_SAMPLE_COUNT_4_BIT;
         }
         if (counts & VK_SAMPLE_COUNT_2_BIT) {
-            msaa_samples = VK_SAMPLE_COUNT_2_BIT;
+            samples = VK_SAMPLE_COUNT_2_BIT;
         }
 
         // Select queue families for each type
@@ -133,7 +133,7 @@ namespace Dynamo::Graphics::Vulkan {
         Log::info("Vulkan max allocation count: {}", best.properties.limits.maxMemoryAllocationCount);
         Log::info("Vulkan max per-set descriptors: {}", best.maintenance.maxPerSetDescriptors);
         Log::info("Vulkan depth-stencil format: {}", VkFormat_string(best.depth_format));
-        Log::info("Vulkan max MSAA sample count: {}", VkSampleCountFlagBits_string(best.msaa_samples));
+        Log::info("Vulkan max MSAA sample count: {}", VkSampleCountFlagBits_string(best.samples));
 
         // Log device queue families
         Log::info("Vulkan graphics queues (Family Index: {} | Count: {})",
