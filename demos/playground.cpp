@@ -1,6 +1,4 @@
 // Playground source file for testing new features.
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#include <stb_image_resize.h>
 #include <string>
 #include <tiny_obj_loader.h>
 
@@ -203,8 +201,8 @@ int main() {
     config.root_asset_directory = "../assets/";
 
     Dynamo::Application app(config);
-    Dynamo::Sound::Buffer music = Dynamo::load_sound("../assets/audio/mono.ogg");
-    Dynamo::Sound::Buffer fx = Dynamo::load_sound("../assets/audio/fusion_boom.ogg");
+    Dynamo::Sound::Buffer music = Dynamo::Asset::load_sound("../assets/audio/mono.ogg");
+    Dynamo::Sound::Buffer fx = Dynamo::Asset::load_sound("../assets/audio/fusion_boom.ogg");
 
     Dynamo::Sound::Listener &listener = app.jukebox().listener();
 
@@ -302,87 +300,41 @@ int main() {
     Dynamo::Graphics::Uniform cubemap_uniform = app.renderer().get_uniform(skybox_pipeline, "cubemap").value();
 
     // Build textures
-    Dynamo::Graphics::TextureDescriptor texture_descriptor;
-
-    int w, h, channels;
-    unsigned char *buffer = stbi_load("../assets/models/viking_room.png", &w, &h, &channels, 4);
-    texture_descriptor.texels.resize(w * h * 4);
-    texture_descriptor.width = w;
-    texture_descriptor.height = h;
-    std::memcpy(texture_descriptor.texels.data(), buffer, w * h * 4);
-    stbi_image_free(buffer);
-
-    texture_descriptor.mip_levels = 10;
-    unsigned lod_w = w;
-    unsigned lod_h = h;
-    for (unsigned i = 1; i < texture_descriptor.mip_levels; i++) {
-        unsigned n = lod_w * lod_h * 4;
-        unsigned dst_offset = texture_descriptor.texels.size();
-        unsigned src_offset = dst_offset - n;
-
-        unsigned next_w = std::max(lod_w / 2, 1U);
-        unsigned next_h = std::max(lod_h / 2, 1U);
-        unsigned next_n = next_w * next_h * 4;
-
-        texture_descriptor.texels.resize(dst_offset + next_n);
-        stbir_resize_uint8(texture_descriptor.texels.data() + src_offset,
-                           lod_w,
-                           lod_h,
-                           0,
-                           texture_descriptor.texels.data() + dst_offset,
-                           next_w,
-                           next_h,
-                           0,
-                           4);
-        lod_w = next_w;
-        lod_h = next_h;
-    }
-
-    Dynamo::Graphics::Texture texture0 = app.renderer().build_texture(texture_descriptor);
+    Dynamo::Graphics::TextureDescriptor viking_texture_descriptor =
+        Dynamo::Asset::load_texture("../assets/models/viking_room.png");
+    Dynamo::Asset::generate_texture_mipmap(viking_texture_descriptor, 10);
+    Dynamo::Graphics::Texture texture0 = app.renderer().build_texture(viking_texture_descriptor);
     app.renderer().bind_texture(sampler_uniform0, texture0, 0);
     app.renderer().bind_texture(sampler_uniform1, texture0, 0);
 
+    Dynamo::Graphics::TextureDescriptor plane_texture_descriptor;
     std::array<Dynamo::Color, 4> colors = {
         Dynamo::Color(1, 0, 0), // TL
         Dynamo::Color(0, 1, 0), // TR
         Dynamo::Color(0, 0, 1), // BL
         Dynamo::Color(1, 1, 1), // BR
     };
-    texture_descriptor.texels.clear();
     for (const Dynamo::Color &color : colors) {
-        texture_descriptor.texels.push_back(255 * color.r);
-        texture_descriptor.texels.push_back(255 * color.g);
-        texture_descriptor.texels.push_back(255 * color.b);
-        texture_descriptor.texels.push_back(255 * color.a);
+        plane_texture_descriptor.texels.push_back(255 * color.r);
+        plane_texture_descriptor.texels.push_back(255 * color.g);
+        plane_texture_descriptor.texels.push_back(255 * color.b);
+        plane_texture_descriptor.texels.push_back(255 * color.a);
     }
-    texture_descriptor.width = 2;
-    texture_descriptor.height = 2;
-    texture_descriptor.mip_levels = 1; // Reset mipmaps
+    plane_texture_descriptor.width = 2;
+    plane_texture_descriptor.height = 2;
 
-    Dynamo::Graphics::Texture texture1 = app.renderer().build_texture(texture_descriptor);
+    Dynamo::Graphics::Texture texture1 = app.renderer().build_texture(plane_texture_descriptor);
     app.renderer().bind_texture(sampler_uniform0, texture1, 1);
     app.renderer().bind_texture(sampler_uniform1, texture1, 1);
 
-    std::array<const char *, 6> skybox_paths = {
-        "../assets/textures/skybox/right.jpg",
-        "../assets/textures/skybox/left.jpg",
-        "../assets/textures/skybox/top.jpg",
-        "../assets/textures/skybox/bottom.jpg",
-        "../assets/textures/skybox/front.jpg",
-        "../assets/textures/skybox/back.jpg",
-    };
-    texture_descriptor.texels.clear();
-    for (const char *path : skybox_paths) {
-        unsigned buffer_offset = texture_descriptor.texels.size();
-        unsigned char *buffer = stbi_load(path, &w, &h, &channels, 4);
-        texture_descriptor.texels.resize(buffer_offset + w * h * 4);
-        std::memcpy(texture_descriptor.texels.data() + buffer_offset, buffer, w * h * 4);
-        stbi_image_free(buffer);
-    }
-    texture_descriptor.width = w;
-    texture_descriptor.height = h;
-    texture_descriptor.usage = Dynamo::Graphics::TextureUsage::Cubemap;
-    Dynamo::Graphics::Texture cubemap_texture = app.renderer().build_texture(texture_descriptor);
+    Dynamo::Graphics::TextureDescriptor cubemap_texture_descriptor =
+        Dynamo::Asset::load_texture_cubemap("../assets/textures/skybox/right.jpg",
+                                            "../assets/textures/skybox/left.jpg",
+                                            "../assets/textures/skybox/top.jpg",
+                                            "../assets/textures/skybox/bottom.jpg",
+                                            "../assets/textures/skybox/front.jpg",
+                                            "../assets/textures/skybox/back.jpg");
+    Dynamo::Graphics::Texture cubemap_texture = app.renderer().build_texture(cubemap_texture_descriptor);
     app.renderer().bind_texture(cubemap_uniform, cubemap_texture, 0);
 
     // Build the models
