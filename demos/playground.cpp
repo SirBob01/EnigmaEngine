@@ -547,6 +547,8 @@ int main() {
         app.renderer().draw(model1);
         app.renderer().draw(skybox);
 
+        app.ui().begin("Demo title");
+
         app.update();
     }
     return 0;

@@ -44,6 +44,13 @@ namespace Dynamo::UI {
         void begin(const std::string &title, const Color &color = Color(0.1, 0.07, 0.03), float radius = 5);
 
         /**
+         * @brief Draw a string of text.
+         *
+         * @param string
+         */
+        void text(const std::string &string);
+
+        /**
          * @brief End the container subcontext.
          *
          */
