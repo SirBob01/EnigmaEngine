@@ -3,7 +3,7 @@
 namespace Dynamo {
     Application::Application(const ApplicationSettings &settings) :
         _display(settings.title, settings.window_width, settings.window_height),
-        _renderer(_display, settings.root_asset_directory) {
+        _renderer(_display, settings.root_asset_directory), _ui(_renderer, _display.input()) {
         // Run audio on a separate thread
         _audio_thread = std::thread([&]() {
             while (is_running()) {
@@ -30,6 +30,8 @@ namespace Dynamo {
     Graphics::Renderer &Application::renderer() { return _renderer; }
 
     Sound::Jukebox &Application::jukebox() { return _jukebox; }
+
+    UI::Context &Application::ui() { return _ui; }
 
     void Application::quit() { _running = false; }
 

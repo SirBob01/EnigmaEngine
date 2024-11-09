@@ -7,6 +7,7 @@
 #include <Display.hpp>
 #include <Graphics/Renderer.hpp>
 #include <Sound/Jukebox.hpp>
+#include <UI/Context.hpp>
 
 namespace Dynamo {
     /**
@@ -48,6 +49,7 @@ namespace Dynamo {
         Clock _clock;
         Graphics::Renderer _renderer;
         Sound::Jukebox _jukebox;
+        UI::Context _ui;
 
         std::thread _audio_thread;
 
@@ -104,6 +106,13 @@ namespace Dynamo {
          * @return Sound::Jukebox&
          */
         Sound::Jukebox &jukebox();
+
+        /**
+         * @brief Get the UI context.
+         *
+         * @return UI::Context&
+         */
+        UI::Context &ui();
 
         /**
          * @brief Quit the application.
