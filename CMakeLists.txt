@@ -42,7 +42,7 @@ file(GLOB_RECURSE SOURCES "./src/*.cpp" "./src/*.c")
 
 # Make Dynamo a shared library
 add_library(Dynamo SHARED ${SOURCES} ${INCLUDE} ${STB_SOURCES})
-target_include_directories(Dynamo PUBLIC "./src" "./submodules/stb")
+target_include_directories(Dynamo PUBLIC "./src" "./submodules/stb" "./submodules/freetype/include")
 
 # Link all libraries together
 target_link_libraries(Dynamo fmt glfw Vulkan::Vulkan PortAudio sndfile tinyobjloader spirv-reflect-static shaderc)

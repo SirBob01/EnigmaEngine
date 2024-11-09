@@ -1,4 +1,5 @@
 #include <Application.hpp>
+#include <Asset/Font.hpp>
 #include <Asset/Sound.hpp>
 #include <Asset/Texture.hpp>
 #include <Clock.hpp>
