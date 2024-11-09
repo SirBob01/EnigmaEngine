@@ -7,9 +7,9 @@
 #include <Graphics/Model.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/FrameContext.hpp>
-#include <Graphics/Vulkan/MaterialRegistry.hpp>
 #include <Graphics/Vulkan/MeshRegistry.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
+#include <Graphics/Vulkan/PipelineRegistry.hpp>
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
 #include <Graphics/Vulkan/TextureRegistry.hpp>
@@ -41,7 +41,7 @@ namespace Dynamo::Graphics {
         MemoryPool _memory;
         MeshRegistry _meshes;
         ShaderRegistry _shaders;
-        MaterialRegistry _materials;
+        PipelineRegistry _pipelines;
         UniformRegistry _uniforms;
         TextureRegistry _textures;
 
@@ -58,9 +58,9 @@ namespace Dynamo::Graphics {
 
         // Important TODO:
         // * Draw-to-texture?
-        // * Decouple Material from Uniforms?
-        //      - Material creation is expensive since we need to hash the descriptors (these are huge)
-        //      - Material should be a Pipeline/RenderPass/Layout triplet + metadata for uniform allocation
+        // * Decouple Uniform allocation from Pipeline?
+        //      - Pipeline creation is expensive since we need to hash the descriptors (these are huge)
+        //      - Pipeline should be a Pipeline/Layout pair + metadata for uniform allocation
         //      - Uniforms are quicker to allocate
         // * Customizable color blending (do we really need this?)
         // * Customizable stencil operations
@@ -140,28 +140,28 @@ namespace Dynamo::Graphics {
         void destroy_texture(Texture texture);
 
         /**
-         * @brief Build a material.
+         * @brief Build a graphics pipeline.
          *
          * @param descriptor
-         * @return Material
+         * @return Pipeline
          */
-        Material build_material(const MaterialDescriptor &descriptor);
+        Pipeline build_pipeline(const PipelineDescriptor &descriptor);
 
         /**
-         * @brief Free material instance resources.
+         * @brief Free pipeline instance resources.
          *
-         * @param material
+         * @param pipeline
          */
-        void destroy_material(Material material);
+        void destroy_pipeline(Pipeline pipeline);
 
         /**
-         * @brief Get a reference to a uniform from a material.
+         * @brief Get a reference to a uniform from a pipeline.
          *
-         * @param material
+         * @param pipeline
          * @param name
          * @return std::optional<Uniform>
          */
-        std::optional<Uniform> get_uniform(Material material, const std::string &name);
+        std::optional<Uniform> get_uniform(Pipeline pipeline, const std::string &name);
 
         /**
          * @brief Write to a uniform.

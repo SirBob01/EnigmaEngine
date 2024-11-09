@@ -25,7 +25,7 @@ namespace Dynamo::Graphics {
         _meshes = MeshRegistry(_device, _physical, _transfer_pool);
         _uniforms = UniformRegistry(_device, _physical, _transfer_pool);
         _textures = TextureRegistry(_device, _physical, _transfer_pool);
-        _materials = MaterialRegistry(_device, _physical, root_asset_directory + "/vulkan_cache.bin");
+        _pipelines = PipelineRegistry(_device, _physical, root_asset_directory + "/vulkan_cache.bin");
 
         // Setup the color buffer
         TextureDescriptor color_descriptor;
@@ -68,11 +68,11 @@ namespace Dynamo::Graphics {
         vkDeviceWaitIdle(_device);
 
         // Cache built pipelines
-        _materials.write_to_disk();
+        _pipelines.write_to_disk();
 
         // High-level objects
         _frame_contexts.destroy();
-        _materials.destroy();
+        _pipelines.destroy();
         _textures.destroy(_memory);
         _uniforms.destroy(_memory);
         _meshes.destroy(_memory);
@@ -173,20 +173,20 @@ namespace Dynamo::Graphics {
 
     void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture, _memory); }
 
-    Material Renderer::build_material(const MaterialDescriptor &descriptor) {
-        return _materials.build(descriptor, _forwardpass, _swapchain, _shaders, _uniforms, _memory);
+    Pipeline Renderer::build_pipeline(const PipelineDescriptor &descriptor) {
+        return _pipelines.build(descriptor, _forwardpass, _swapchain, _shaders, _uniforms, _memory);
     }
 
-    void Renderer::destroy_material(Material material) {
+    void Renderer::destroy_pipeline(Pipeline pipeline) {
         // Free allocated descriptor / push constant uniforms
-        MaterialInstance &instance = _materials.get(material);
+        PipelineInstance &instance = _pipelines.get(pipeline);
         for (Uniform uniform : instance.uniforms) {
             _uniforms.destroy(uniform, _memory);
         }
     }
 
-    std::optional<Uniform> Renderer::get_uniform(Material material, const std::string &name) {
-        MaterialInstance &instance = _materials.get(material);
+    std::optional<Uniform> Renderer::get_uniform(Pipeline pipeline, const std::string &name) {
+        PipelineInstance &instance = _pipelines.get(pipeline);
         for (Uniform uniform : instance.uniforms) {
             const UniformVariable &var = _uniforms.get(uniform);
             if (var.name == name) {
@@ -235,10 +235,10 @@ namespace Dynamo::Graphics {
 
         VkResult_check("Begin Command Recording", vkBeginCommandBuffer(frame.command_buffer, &begin_info));
 
-        // Sort models by group, then material, then geometry
+        // Sort models by group, then pipeline, then geometry
         std::sort(_models.begin(), _models.end(), [](const Model &a, const Model &b) {
             return a.group < b.group ||
-                   (a.group == b.group && (a.material < b.material || (a.material == b.material && a.mesh < b.mesh)));
+                   (a.group == b.group && (a.pipeline < b.pipeline || (a.pipeline == b.pipeline && a.mesh < b.mesh)));
         });
 
         // Submit commands
@@ -273,12 +273,12 @@ namespace Dynamo::Graphics {
 
         for (Model model : _models) {
             const MeshInstance &mesh = _meshes.get(model.mesh);
-            const MaterialInstance &material = _materials.get(model.material);
+            const PipelineInstance &pipeline = _pipelines.get(model.pipeline);
 
             // Rebind pipeline if changed
-            if (prev_pipeline != material.pipeline) {
-                prev_pipeline = material.pipeline;
-                vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.pipeline);
+            if (prev_pipeline != pipeline.handle) {
+                prev_pipeline = pipeline.handle;
+                vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
             }
 
             // Rebind mesh if changed
@@ -296,24 +296,24 @@ namespace Dynamo::Graphics {
 
             // Bind descriptor sets
             // TODO: Avoid costly descriptor set rebinding
-            if (material.descriptor_sets.size()) {
+            if (pipeline.descriptor_sets.size()) {
                 vkCmdBindDescriptorSets(frame.command_buffer,
                                         VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        material.layout,
+                                        pipeline.layout,
                                         0,
-                                        material.descriptor_sets.size(),
-                                        material.descriptor_sets.data(),
+                                        pipeline.descriptor_sets.size(),
+                                        pipeline.descriptor_sets.data(),
                                         0,
                                         nullptr);
             }
 
             // Push constants
-            for (unsigned i = 0; i < material.push_constant_ranges.size(); i++) {
-                VkPushConstantRange range = material.push_constant_ranges[i];
-                unsigned offset = material.push_constant_offsets[i];
+            for (unsigned i = 0; i < pipeline.push_constant_ranges.size(); i++) {
+                VkPushConstantRange range = pipeline.push_constant_ranges[i];
+                unsigned offset = pipeline.push_constant_offsets[i];
                 void *data = _uniforms.get_push_constant_data(offset);
                 vkCmdPushConstants(frame.command_buffer,
-                                   material.layout,
+                                   pipeline.layout,
                                    range.stageFlags,
                                    range.offset,
                                    range.size,

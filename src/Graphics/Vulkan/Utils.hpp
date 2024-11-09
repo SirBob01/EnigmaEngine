@@ -5,7 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Display.hpp>
-#include <Graphics/Material.hpp>
+#include <Graphics/Pipeline.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
 #include <Utils/Log.hpp>

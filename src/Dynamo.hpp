@@ -3,9 +3,9 @@
 #include <Clock.hpp>
 #include <Display.hpp>
 #include <ECS/World.hpp>
-#include <Graphics/Material.hpp>
 #include <Graphics/Mesh.hpp>
 #include <Graphics/Model.hpp>
+#include <Graphics/Pipeline.hpp>
 #include <Graphics/Renderer.hpp>
 #include <Graphics/Shader.hpp>
 #include <Graphics/Texture.hpp>

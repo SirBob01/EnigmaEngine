@@ -1,8 +1,8 @@
-#include <Graphics/Vulkan/MaterialRegistry.hpp>
+#include <Graphics/Vulkan/PipelineRegistry.hpp>
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    MaterialRegistry::MaterialRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename) :
+    PipelineRegistry::PipelineRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename) :
         _device(device), _physical(&physical) {
         std::ifstream ifstream;
         ifstream.open(filename, std::ios::app | std::ios::binary);
@@ -23,13 +23,13 @@ namespace Dynamo::Graphics::Vulkan {
         _ofstream.open(filename, std::ios::trunc | std::ios::binary);
     }
 
-    Material MaterialRegistry::build(const MaterialDescriptor &descriptor,
+    Pipeline PipelineRegistry::build(const PipelineDescriptor &descriptor,
                                      VkRenderPass renderpass,
                                      const Swapchain &swapchain,
                                      const ShaderRegistry &shaders,
                                      UniformRegistry &uniforms,
                                      MemoryPool &memory) {
-        MaterialInstance instance;
+        PipelineInstance instance;
 
         const ShaderModule &vertex_module = shaders.get(descriptor.vertex);
         const ShaderModule &fragment_module = shaders.get(descriptor.fragment);
@@ -100,35 +100,35 @@ namespace Dynamo::Graphics::Vulkan {
         pipeline_settings.depth_test_op = convert_compare_op(descriptor.depth_test_op);
         auto pipeline_it = _pipelines.find(pipeline_settings);
         if (pipeline_it != _pipelines.end()) {
-            instance.pipeline = pipeline_it->second;
+            instance.handle = pipeline_it->second;
         } else {
-            instance.pipeline = VkPipeline_create(_device,
-                                                  _pipeline_cache,
-                                                  pipeline_settings.layout,
-                                                  renderpass,
-                                                  pipeline_settings.vertex,
-                                                  pipeline_settings.fragment,
-                                                  pipeline_settings.topology,
-                                                  pipeline_settings.fill,
-                                                  pipeline_settings.cull,
-                                                  pipeline_settings.samples,
-                                                  pipeline_settings.color_mask,
-                                                  pipeline_settings.depth_test,
-                                                  pipeline_settings.depth_write,
-                                                  pipeline_settings.depth_test_op,
-                                                  vertex_module.bindings.data(),
-                                                  vertex_module.bindings.size(),
-                                                  vertex_module.attributes.data(),
-                                                  vertex_module.attributes.size());
-            _pipelines.emplace(pipeline_settings, instance.pipeline);
+            instance.handle = VkPipeline_create(_device,
+                                                _pipeline_cache,
+                                                pipeline_settings.layout,
+                                                renderpass,
+                                                pipeline_settings.vertex,
+                                                pipeline_settings.fragment,
+                                                pipeline_settings.topology,
+                                                pipeline_settings.fill,
+                                                pipeline_settings.cull,
+                                                pipeline_settings.samples,
+                                                pipeline_settings.color_mask,
+                                                pipeline_settings.depth_test,
+                                                pipeline_settings.depth_write,
+                                                pipeline_settings.depth_test_op,
+                                                vertex_module.bindings.data(),
+                                                vertex_module.bindings.size(),
+                                                vertex_module.attributes.data(),
+                                                vertex_module.attributes.size());
+            _pipelines.emplace(pipeline_settings, instance.handle);
         }
 
         return _instances.insert(instance);
     }
 
-    MaterialInstance &MaterialRegistry::get(Material material) { return _instances.get(material); }
+    PipelineInstance &PipelineRegistry::get(Pipeline pipeline) { return _instances.get(pipeline); }
 
-    void MaterialRegistry::destroy() {
+    void PipelineRegistry::destroy() {
         // Clean up pipelines
         vkDestroyPipelineCache(_device, _pipeline_cache, nullptr);
         for (const auto &[key, pipeline] : _pipelines) {
@@ -146,7 +146,7 @@ namespace Dynamo::Graphics::Vulkan {
         _instances.clear();
     }
 
-    void MaterialRegistry::write_to_disk() {
+    void PipelineRegistry::write_to_disk() {
         size_t size;
         vkGetPipelineCacheData(_device, _pipeline_cache, &size, nullptr);
         std::vector<char> buffer(size);

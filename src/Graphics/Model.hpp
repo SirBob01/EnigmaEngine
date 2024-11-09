@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Graphics/Material.hpp>
 #include <Graphics/Mesh.hpp>
+#include <Graphics/Pipeline.hpp>
 
 namespace Dynamo::Graphics {
     /**
@@ -16,10 +16,10 @@ namespace Dynamo::Graphics {
         Mesh mesh;
 
         /**
-         * @brief Model material properties.
+         * @brief Model pipeline.
          *
          */
-        Material material;
+        Pipeline pipeline;
 
         /**
          * @brief Group index used in sorting.

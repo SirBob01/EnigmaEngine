@@ -269,37 +269,37 @@ int main() {
     skybox_fragment_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Fragment;
     Dynamo::Graphics::Shader skybox_fragment = app.renderer().build_shader(skybox_fragment_shader_descriptor);
 
-    // Build model materials
-    Dynamo::Graphics::MaterialDescriptor material_descriptor;
-    material_descriptor.vertex = vertex;
-    material_descriptor.fragment = fragment;
-    material_descriptor.cull = Dynamo::Graphics::Cull::None;
-    Dynamo::Graphics::Material material0 = app.renderer().build_material(material_descriptor);
-    Dynamo::Graphics::Material material1 = app.renderer().build_material(material_descriptor);
+    // Build model pipelines
+    Dynamo::Graphics::PipelineDescriptor pipeline_descriptor;
+    pipeline_descriptor.vertex = vertex;
+    pipeline_descriptor.fragment = fragment;
+    pipeline_descriptor.cull = Dynamo::Graphics::Cull::None;
+    Dynamo::Graphics::Pipeline pipeline0 = app.renderer().build_pipeline(pipeline_descriptor);
+    Dynamo::Graphics::Pipeline pipeline1 = app.renderer().build_pipeline(pipeline_descriptor);
 
-    // Build cubemap material
-    Dynamo::Graphics::MaterialDescriptor skybox_material_descriptor;
-    skybox_material_descriptor.vertex = skybox_vertex;
-    skybox_material_descriptor.fragment = skybox_fragment;
-    skybox_material_descriptor.depth_test_op = Dynamo::Graphics::CompareOp::LessEqual;
-    Dynamo::Graphics::Material skybox_material = app.renderer().build_material(skybox_material_descriptor);
+    // Build cubemap pipeline
+    Dynamo::Graphics::PipelineDescriptor skybox_pipeline_descriptor;
+    skybox_pipeline_descriptor.vertex = skybox_vertex;
+    skybox_pipeline_descriptor.fragment = skybox_fragment;
+    skybox_pipeline_descriptor.depth_test_op = Dynamo::Graphics::CompareOp::LessEqual;
+    Dynamo::Graphics::Pipeline skybox_pipeline = app.renderer().build_pipeline(skybox_pipeline_descriptor);
 
-    // Shared uniforms are constant across all materials, so changing either uniform will write to the same memory.
+    // Shared uniforms are constant across all pipelines, so changing either uniform will write to the same memory.
 
-    Dynamo::Graphics::Uniform transform_uniform0 = app.renderer().get_uniform(material0, "transform").value();
-    Dynamo::Graphics::Uniform transform_uniform1 = app.renderer().get_uniform(material1, "transform").value();
+    Dynamo::Graphics::Uniform transform_uniform0 = app.renderer().get_uniform(pipeline0, "transform").value();
+    Dynamo::Graphics::Uniform transform_uniform1 = app.renderer().get_uniform(pipeline1, "transform").value();
 
-    Dynamo::Graphics::Uniform time_uniform0 = app.renderer().get_uniform(material0, "timer").value();
-    Dynamo::Graphics::Uniform time_uniform1 = app.renderer().get_uniform(material1, "timer").value();
+    Dynamo::Graphics::Uniform time_uniform0 = app.renderer().get_uniform(pipeline0, "timer").value();
+    Dynamo::Graphics::Uniform time_uniform1 = app.renderer().get_uniform(pipeline1, "timer").value();
 
-    Dynamo::Graphics::Uniform sampler_uniform0 = app.renderer().get_uniform(material0, "tex_sampler").value();
-    Dynamo::Graphics::Uniform sampler_uniform1 = app.renderer().get_uniform(material1, "tex_sampler").value();
+    Dynamo::Graphics::Uniform sampler_uniform0 = app.renderer().get_uniform(pipeline0, "tex_sampler").value();
+    Dynamo::Graphics::Uniform sampler_uniform1 = app.renderer().get_uniform(pipeline1, "tex_sampler").value();
 
-    Dynamo::Graphics::Uniform texture_index0 = app.renderer().get_uniform(material0, "utexture").value();
-    Dynamo::Graphics::Uniform texture_index1 = app.renderer().get_uniform(material1, "utexture").value();
+    Dynamo::Graphics::Uniform texture_index0 = app.renderer().get_uniform(pipeline0, "utexture").value();
+    Dynamo::Graphics::Uniform texture_index1 = app.renderer().get_uniform(pipeline1, "utexture").value();
 
-    Dynamo::Graphics::Uniform skytransform_uniform = app.renderer().get_uniform(skybox_material, "transform").value();
-    Dynamo::Graphics::Uniform cubemap_uniform = app.renderer().get_uniform(skybox_material, "cubemap").value();
+    Dynamo::Graphics::Uniform skytransform_uniform = app.renderer().get_uniform(skybox_pipeline, "transform").value();
+    Dynamo::Graphics::Uniform cubemap_uniform = app.renderer().get_uniform(skybox_pipeline, "cubemap").value();
 
     // Build textures
     Dynamo::Graphics::TextureDescriptor texture_descriptor;
@@ -388,15 +388,15 @@ int main() {
     // Build the models
     Dynamo::Graphics::Model model0;
     model0.mesh = model_mesh;
-    model0.material = material0;
+    model0.pipeline = pipeline0;
 
     Dynamo::Graphics::Model model1;
     model1.mesh = flat_mesh;
-    model1.material = material1;
+    model1.pipeline = pipeline1;
 
     Dynamo::Graphics::Model skybox;
     skybox.mesh = skybox_mesh;
-    skybox.material = skybox_material;
+    skybox.pipeline = skybox_pipeline;
     skybox.group = 1;
 
     // Sound source
