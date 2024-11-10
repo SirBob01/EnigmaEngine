@@ -108,9 +108,9 @@ namespace Dynamo::Graphics::Vulkan {
         }
 
         Log::info("Selecting Vulkan device:");
-        PhysicalDevice best = PhysicalDevice(handles[0], surface);
+        PhysicalDevice best(handles[0], surface);
         for (unsigned i = 0; i < handles.size(); i++) {
-            PhysicalDevice device = PhysicalDevice(handles[i], surface);
+            PhysicalDevice device(handles[i], surface);
             unsigned score = device.score();
             if (score > best.score()) {
                 best = device;
