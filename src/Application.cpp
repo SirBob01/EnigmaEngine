@@ -3,7 +3,7 @@
 namespace Dynamo {
     Application::Application(const ApplicationSettings &settings) :
         _display(settings.title, settings.window_width, settings.window_height),
-        _renderer(_display, settings.root_asset_directory) {
+        _renderer(_display, settings.root_asset_directory), _draw2D(_display, _renderer) {
         // Run audio on a separate thread
         _audio_thread = std::thread([&]() {
             while (is_running()) {
@@ -29,6 +29,8 @@ namespace Dynamo {
 
     Graphics::Renderer &Application::renderer() { return _renderer; }
 
+    Graphics::Draw2D &Application::draw2D() { return _draw2D; }
+
     Sound::Jukebox &Application::jukebox() { return _jukebox; }
 
     void Application::quit() { _running = false; }
@@ -36,6 +38,11 @@ namespace Dynamo {
     void Application::update() {
         // Poll for input
         _display.input().poll();
+
+        // Draw 2D shapes
+        _draw2D.draw();
+
+        // Present the rendered image
         _renderer.render();
 
         // Tick

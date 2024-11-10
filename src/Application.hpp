@@ -5,6 +5,7 @@
 
 #include <Clock.hpp>
 #include <Display.hpp>
+#include <Graphics/Draw2D.hpp>
 #include <Graphics/Renderer.hpp>
 #include <Sound/Jukebox.hpp>
 
@@ -47,6 +48,7 @@ namespace Dynamo {
         Display _display;
         Clock _clock;
         Graphics::Renderer _renderer;
+        Graphics::Draw2D _draw2D;
         Sound::Jukebox _jukebox;
 
         std::thread _audio_thread;
@@ -97,6 +99,13 @@ namespace Dynamo {
          * @return Graphics::Renderer&
          */
         Graphics::Renderer &renderer();
+
+        /**
+         * @brief Get the Draw2D interface.
+         *
+         * @return Graphics::Draw2D&
+         */
+        Graphics::Draw2D &draw2D();
 
         /**
          * @brief Get the audio engine.

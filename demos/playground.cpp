@@ -499,6 +499,12 @@ int main() {
         app.renderer().draw(model1);
         app.renderer().draw(skybox);
 
+        Dynamo::Box2 box(mouse_position, 100, 100);
+        for (unsigned i = 0; i < 1024; i++) {
+            app.draw2D().ellipse(mouse_position, {100, 200}, {1, 1, 0});
+            app.draw2D().rect(box, {1, 1, 1}, 0);
+            app.draw2D().circle(mouse_position, 50, {1, 0, 1});
+        }
         app.update();
     }
     return 0;
