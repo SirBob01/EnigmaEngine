@@ -2,20 +2,22 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
+    // Limit of 128 bytes for push constants
+    constexpr unsigned PUSH_CONSTANT_HEAP_SIZE = 128;
+    constexpr unsigned DESCRIPTOR_POOL_SIZE = 1024;
+
     UniformRegistry::UniformRegistry(VkDevice device,
                                      const PhysicalDevice &physical,
                                      MemoryPool &memory,
                                      VkCommandPool transfer_pool) :
         _device(device),
-        _memory(memory) {
+        _memory(memory),
+        _push_constant_buffer(PUSH_CONSTANT_HEAP_SIZE) {
         std::array<VkDescriptorPoolSize, 2> sizes = {
-            VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024},
-            VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
+            VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, DESCRIPTOR_POOL_SIZE},
+            VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, DESCRIPTOR_POOL_SIZE},
         };
-        _pool = VkDescriptorPool_create(device, sizes.data(), sizes.size(), 1024);
-
-        // Limit of 128 bytes for push constants
-        _push_constant_buffer = VirtualMemory(128);
+        _pool = VkDescriptorPool_create(device, sizes.data(), sizes.size(), DESCRIPTOR_POOL_SIZE);
     }
 
     UniformRegistry::~UniformRegistry() {
@@ -137,7 +139,7 @@ namespace Dynamo::Graphics::Vulkan {
                 shared.ref_count++;
                 var.push_constant.offset = shared.push_constant_offset;
             } else {
-                var.push_constant.offset = _push_constant_buffer.reserve(var.push_constant.size);
+                var.push_constant.offset = _push_constant_buffer.reserve(var.push_constant.size).value();
 
                 SharedVariable shared;
                 shared.ref_count = 1;
@@ -145,7 +147,7 @@ namespace Dynamo::Graphics::Vulkan {
                 _shared.emplace(push_constant.name, shared);
             }
         } else {
-            var.push_constant.offset = _push_constant_buffer.reserve(var.push_constant.size);
+            var.push_constant.offset = _push_constant_buffer.reserve(var.push_constant.size).value();
         }
 
         PushConstantAllocation allocation;
@@ -159,7 +161,7 @@ namespace Dynamo::Graphics::Vulkan {
     const UniformVariable &UniformRegistry::get(Uniform uniform) { return _variables.get(uniform); }
 
     void *UniformRegistry::get_push_constant_data(unsigned block_offset) {
-        return _push_constant_buffer.get_mapped(block_offset);
+        return _push_constant_buffer.mapped(block_offset);
     }
 
     void UniformRegistry::write(Uniform uniform, void *data, unsigned index, unsigned count) {
@@ -171,7 +173,7 @@ namespace Dynamo::Graphics::Vulkan {
             break;
         }
         case UniformType::PushConstant: {
-            char *dst = static_cast<char *>(_push_constant_buffer.get_mapped(var.push_constant.offset));
+            char *dst = static_cast<char *>(_push_constant_buffer.mapped(var.push_constant.offset));
             std::memcpy(dst + index * var.push_constant.size, data, var.push_constant.size * count);
             break;
         }

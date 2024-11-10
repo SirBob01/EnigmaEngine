@@ -15,8 +15,14 @@ namespace Dynamo {
         unsigned _alignment;
 
       public:
-        VirtualMemory(unsigned initial_size, unsigned alignment = 1);
-        VirtualMemory() = default;
+        VirtualMemory(unsigned capacity, unsigned alignment = 1);
+
+        /**
+         * @brief Get the capacity of the heap.
+         *
+         * @return unsigned
+         */
+        unsigned capacity() const;
 
         /**
          * @brief Get the size of a block.
@@ -30,9 +36,16 @@ namespace Dynamo {
          * @brief Reserve a block.
          *
          * @param size
-         * @return unsigned
+         * @return std::optional<unsigned>
          */
-        unsigned reserve(unsigned size);
+        std::optional<unsigned> reserve(unsigned size);
+
+        /**
+         * @brief Grow the heap.
+         *
+         * @param capacity
+         */
+        void grow(unsigned capacity);
 
         /**
          * @brief Free an allocated block.
@@ -46,6 +59,6 @@ namespace Dynamo {
          *
          * @return void*
          */
-        void *get_mapped(unsigned block_offset);
+        void *mapped(unsigned block_offset);
     };
 } // namespace Dynamo
