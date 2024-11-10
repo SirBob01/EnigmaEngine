@@ -22,10 +22,8 @@ namespace Dynamo::Graphics::Vulkan {
 
       public:
         FrameContextList(VkDevice device, VkCommandPool command_pool);
-        FrameContextList() = default;
+        ~FrameContextList();
 
         const FrameContext &next();
-
-        void destroy();
     };
 } // namespace Dynamo::Graphics::Vulkan

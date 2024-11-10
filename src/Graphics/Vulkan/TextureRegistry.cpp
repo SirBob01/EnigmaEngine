@@ -2,21 +2,39 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    TextureRegistry::TextureRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool) :
-        _device(device), _physical(&physical) {
+    TextureRegistry::TextureRegistry(VkDevice device,
+                                     const PhysicalDevice &physical,
+                                     MemoryPool &memory,
+                                     VkCommandPool transfer_pool) :
+        _device(device),
+        _physical(physical),
+        _memory(memory) {
         VkCommandBuffer_allocate(_device, transfer_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, &_command_buffer, 1);
         vkGetDeviceQueue(_device, physical.transfer_queues.index, 0, &_transfer_queue);
+    }
+
+    TextureRegistry::~TextureRegistry() {
+        _instances.foreach ([&](TextureInstance &instance) {
+            vkDestroyImageView(_device, instance.view, nullptr);
+            _memory.free(instance.image);
+        });
+        _instances.clear();
+
+        for (const auto &[key, sampler] : _samplers) {
+            vkDestroySampler(_device, sampler, nullptr);
+        }
+        _samplers.clear();
     }
 
     void TextureRegistry::write_texels(const std::vector<unsigned char> &texels,
                                        VkImage image,
                                        VkFormat format,
                                        const VkExtent3D &extent,
-                                       const VkImageSubresourceRange &subresources,
-                                       MemoryPool &memory) {
-        VirtualBuffer staging = memory.build(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                             texels.size());
+                                       const VkImageSubresourceRange &subresources) {
+        VirtualBuffer staging =
+            _memory.build(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                          texels.size());
         std::memcpy(staging.mapped, texels.data(), texels.size());
 
         // Transition image to optimal layout for buffer copying
@@ -65,11 +83,10 @@ namespace Dynamo::Graphics::Vulkan {
         VkCommandBuffer_immediate_end(_command_buffer, _transfer_queue);
 
         // Free the staging buffer
-        memory.free(staging);
+        _memory.free(staging);
     }
 
-    Texture
-    TextureRegistry::build(const TextureDescriptor &descriptor, const Swapchain &swapchain, MemoryPool &memory) {
+    Texture TextureRegistry::build(const TextureDescriptor &descriptor, const Swapchain &swapchain) {
         TextureInstance instance;
 
         // Build sampler
@@ -95,7 +112,7 @@ namespace Dynamo::Graphics::Vulkan {
                                                 sampler_settings.min_filter,
                                                 sampler_settings.mipmap_mode,
                                                 sampler_settings.border_color,
-                                                _physical->properties.limits.maxSamplerAnisotropy,
+                                                _physical.properties.limits.maxSamplerAnisotropy,
                                                 sampler_settings.mip_levels);
             _samplers.emplace(sampler_settings, instance.sampler);
         }
@@ -124,44 +141,44 @@ namespace Dynamo::Graphics::Vulkan {
         case TextureUsage::Static:
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             subresources.layerCount = 1;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
             break;
         case TextureUsage::Cubemap:
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             subresources.layerCount = 6;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
             flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
             break;
         case TextureUsage::ColorTarget:
             usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
             subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             subresources.layerCount = 1;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
-            samples = _physical->samples;
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
+            samples = _physical.samples;
             break;
         case TextureUsage::DepthStencilTarget:
             usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
             subresources.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
             subresources.layerCount = 1;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical->depth_format);
-            samples = _physical->samples;
+            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
+            samples = _physical.samples;
             break;
         }
 
-        instance.image = memory.build(extent,
-                                      format,
-                                      VK_IMAGE_LAYOUT_UNDEFINED,
-                                      type,
-                                      tiling,
-                                      usage,
-                                      samples,
-                                      flags,
-                                      subresources.levelCount,
-                                      subresources.layerCount);
+        instance.image = _memory.build(extent,
+                                       format,
+                                       VK_IMAGE_LAYOUT_UNDEFINED,
+                                       type,
+                                       tiling,
+                                       usage,
+                                       samples,
+                                       flags,
+                                       subresources.levelCount,
+                                       subresources.layerCount);
 
         // Copy texels to staging buffer, if any
         if (descriptor.texels.size()) {
-            write_texels(descriptor.texels, instance.image.image, format, extent, subresources, memory);
+            write_texels(descriptor.texels, instance.image.image, format, extent, subresources);
         }
 
         // Build image view
@@ -180,23 +197,10 @@ namespace Dynamo::Graphics::Vulkan {
 
     const TextureInstance &TextureRegistry::get(Texture texture) const { return _instances.get(texture); }
 
-    void TextureRegistry::destroy(Texture texture, MemoryPool &memory) {
+    void TextureRegistry::destroy(Texture texture) {
         const TextureInstance &instance = _instances.get(texture);
         vkDestroyImageView(_device, instance.view, nullptr);
-        memory.free(instance.image);
+        _memory.free(instance.image);
         _instances.remove(texture);
-    }
-
-    void TextureRegistry::destroy(MemoryPool &memory) {
-        _instances.foreach ([&](TextureInstance &instance) {
-            vkDestroyImageView(_device, instance.view, nullptr);
-            memory.free(instance.image);
-        });
-        _instances.clear();
-
-        for (const auto &[key, sampler] : _samplers) {
-            vkDestroySampler(_device, sampler, nullptr);
-        }
-        _samplers.clear();
     }
 } // namespace Dynamo::Graphics::Vulkan

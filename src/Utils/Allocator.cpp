@@ -11,7 +11,7 @@ namespace Dynamo {
     }
 
     void Allocator::defragment(std::list<Block>::iterator it) {
-#ifdef DYN_DEBUG
+#if defined(DYN_DEBUG) && defined(DYN_DEBUG_ALLOCATOR)
         Log::info("Defragmentation target: {} {}", it->offset, it->offset + it->size);
         Log::info("Before defragmentation: {}", print());
 #endif
@@ -39,7 +39,7 @@ namespace Dynamo {
         it->offset = new_offset;
         it->size = new_size;
 
-#ifdef DYN_DEBUG
+#if defined(DYN_DEBUG) && defined(DYN_DEBUG_ALLOCATOR)
         Log::info("After defragmentation: {}", print());
 #endif
     }
@@ -131,7 +131,7 @@ namespace Dynamo {
     }
 
     void Allocator::grow(unsigned capacity) {
-#ifdef DYN_DEBUG
+#if defined(DYN_DEBUG) && defined(DYN_DEBUG_ALLOCATOR)
         Log::info("Before grow: {}", print());
 #endif
         DYN_ASSERT(capacity >= _capacity);
@@ -147,7 +147,7 @@ namespace Dynamo {
         _free.push_back(new_free);
         defragment(std::prev(_free.end()));
 
-#ifdef DYN_DEBUG
+#if defined(DYN_DEBUG) && defined(DYN_DEBUG_ALLOCATOR)
         Log::info("After grow: {}", print());
 #endif
     }

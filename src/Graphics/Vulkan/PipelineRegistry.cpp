@@ -3,24 +3,28 @@
 
 namespace Dynamo::Graphics::Vulkan {
     PipelineRegistry::PipelineRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename) :
-        _device(device), _physical(&physical) {
-        std::ifstream ifstream;
-        ifstream.open(filename, std::ios::app | std::ios::binary);
-        ifstream.seekg(0, ifstream.end);
-        size_t size = ifstream.tellg();
-        ifstream.seekg(0, ifstream.beg);
-        std::vector<char> buffer(size);
-        ifstream.read(buffer.data(), size);
-        ifstream.close();
-
-        VkPipelineCacheCreateInfo cache_info;
-        cache_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-        cache_info.initialDataSize = size;
-        cache_info.pInitialData = buffer.data();
-
-        VkResult_check("Create Pipeline Cache", vkCreatePipelineCache(_device, &cache_info, nullptr, &_pipeline_cache));
-
+        _device(device),
+        _physical(physical),
+        _pipeline_cache(VkPipelineCache_create(_device, filename)) {
         _ofstream.open(filename, std::ios::trunc | std::ios::binary);
+    }
+
+    PipelineRegistry::~PipelineRegistry() {
+        // Clean up pipelines
+        vkDestroyPipelineCache(_device, _pipeline_cache, nullptr);
+        for (const auto &[key, pipeline] : _pipelines) {
+            vkDestroyPipeline(_device, pipeline, nullptr);
+        }
+        _pipelines.clear();
+
+        // Clean up pipeline layouts
+        for (const auto &[key, layout] : _layouts) {
+            vkDestroyPipelineLayout(_device, layout, nullptr);
+        }
+        _layouts.clear();
+
+        // Clear all instances
+        _instances.clear();
     }
 
     Pipeline PipelineRegistry::build(const PipelineDescriptor &descriptor,
@@ -44,7 +48,7 @@ namespace Dynamo::Graphics::Vulkan {
             for (const DescriptorSet &set : module.descriptor_sets) {
                 layout_settings.descriptor_layouts.push_back(set.layout);
                 // TODO: What if we have duplicate set layouts? Can we reuse?
-                DescriptorAllocation allocation = uniforms.allocate(set, memory);
+                DescriptorAllocation allocation = uniforms.allocate(set);
                 instance.descriptor_sets.push_back(allocation.descriptor_set);
                 for (Uniform uniform : allocation.uniforms) {
                     instance.uniforms.push_back(uniform);
@@ -81,7 +85,7 @@ namespace Dynamo::Graphics::Vulkan {
         pipeline_settings.topology = convert_topology(descriptor.topology);
         pipeline_settings.fill = convert_fill(descriptor.fill);
         pipeline_settings.cull = convert_cull(descriptor.cull);
-        pipeline_settings.samples = _physical->samples;
+        pipeline_settings.samples = _physical.samples;
         pipeline_settings.color_mask = 0;
         if (descriptor.color_mask.r) {
             pipeline_settings.color_mask |= VK_COLOR_COMPONENT_R_BIT;
@@ -127,24 +131,6 @@ namespace Dynamo::Graphics::Vulkan {
     }
 
     PipelineInstance &PipelineRegistry::get(Pipeline pipeline) { return _instances.get(pipeline); }
-
-    void PipelineRegistry::destroy() {
-        // Clean up pipelines
-        vkDestroyPipelineCache(_device, _pipeline_cache, nullptr);
-        for (const auto &[key, pipeline] : _pipelines) {
-            vkDestroyPipeline(_device, pipeline, nullptr);
-        }
-        _pipelines.clear();
-
-        // Clean up pipeline layouts
-        for (const auto &[key, layout] : _layouts) {
-            vkDestroyPipelineLayout(_device, layout, nullptr);
-        }
-        _layouts.clear();
-
-        // Clear all instances
-        _instances.clear();
-    }
 
     void PipelineRegistry::write_to_disk() {
         size_t size;

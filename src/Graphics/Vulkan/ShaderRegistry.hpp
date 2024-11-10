@@ -98,14 +98,12 @@ namespace Dynamo::Graphics::Vulkan {
 
       public:
         ShaderRegistry(VkDevice device);
-        ShaderRegistry() = default;
+        ~ShaderRegistry();
 
         const ShaderModule &get(Shader shader) const;
 
         Shader build(const ShaderDescriptor &descriptor);
 
         void destroy(Shader shader);
-
-        void destroy();
     };
 } // namespace Dynamo::Graphics::Vulkan

@@ -53,7 +53,8 @@ namespace Dynamo::Graphics::Vulkan {
 
     class TextureRegistry {
         VkDevice _device;
-        const PhysicalDevice *_physical;
+        const PhysicalDevice &_physical;
+        MemoryPool &_memory;
 
         VkQueue _transfer_queue;
         VkCommandBuffer _command_buffer;
@@ -65,19 +66,19 @@ namespace Dynamo::Graphics::Vulkan {
                           VkImage image,
                           VkFormat format,
                           const VkExtent3D &extent,
-                          const VkImageSubresourceRange &subresources,
-                          MemoryPool &memory);
+                          const VkImageSubresourceRange &subresources);
 
       public:
-        TextureRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
-        TextureRegistry() = default;
+        TextureRegistry(VkDevice device,
+                        const PhysicalDevice &physical,
+                        MemoryPool &memory,
+                        VkCommandPool transfer_pool);
+        ~TextureRegistry();
 
-        Texture build(const TextureDescriptor &descriptor, const Swapchain &swapchain, MemoryPool &memory);
+        Texture build(const TextureDescriptor &descriptor, const Swapchain &swapchain);
 
         const TextureInstance &get(Texture texture) const;
 
-        void destroy(Texture texture, MemoryPool &memory);
-
-        void destroy(MemoryPool &memory);
+        void destroy(Texture texture);
     };
 } // namespace Dynamo::Graphics::Vulkan

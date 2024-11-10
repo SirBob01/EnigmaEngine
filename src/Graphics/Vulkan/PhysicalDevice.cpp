@@ -1,7 +1,6 @@
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
 #include <Graphics/Vulkan/Utils.hpp>
 #include <Utils/Log.hpp>
-#include <vulkan/vulkan_core.h>
 
 namespace Dynamo::Graphics::Vulkan {
     PhysicalDevice::PhysicalDevice(VkPhysicalDevice handle, VkSurfaceKHR surface) : handle(handle), surface(surface) {

@@ -25,8 +25,8 @@ namespace Dynamo::Graphics::Vulkan {
                   const PhysicalDevice &physical,
                   const Display &display,
                   std::optional<Swapchain> previous = {});
-        Swapchain() = default;
 
+        // Need to bypass destructor call order to perform swapchain recreation
         void destroy();
     };
 } // namespace Dynamo::Graphics::Vulkan

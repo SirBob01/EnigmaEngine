@@ -1,32 +1,23 @@
 #include <Graphics/Renderer.hpp>
 
 namespace Dynamo::Graphics {
-    Renderer::Renderer(const Display &display, const std::string &root_asset_directory) : _display(display) {
-        _instance = VkInstance_create(_display);
-#ifdef DYN_DEBUG
-        _debugger = VkDebugUtilsMessengerEXT_create(_instance);
-#endif
-        _surface = _display.create_vulkan_surface(_instance);
+    using namespace Vulkan;
 
-        // Create the logical device
-        _physical = PhysicalDevice::select_best(_instance, _surface);
-        _device = VkDevice_create(_physical);
-
-        // Build the swapchain and its views
-        _swapchain = Swapchain(_device, _physical, _display);
-
-        // Command buffer pools for each queue family
-        _graphics_pool = VkCommandPool_create(_device, _physical.graphics_queues);
-        _transfer_pool = VkCommandPool_create(_device, _physical.transfer_queues);
-
-        // Vulkan object registries
-        _memory = MemoryPool(_device, _physical);
-        _shaders = ShaderRegistry(_device);
-        _meshes = MeshRegistry(_device, _physical, _transfer_pool);
-        _uniforms = UniformRegistry(_device, _physical, _transfer_pool);
-        _textures = TextureRegistry(_device, _physical, _transfer_pool);
-        _pipelines = PipelineRegistry(_device, _physical, root_asset_directory + "/vulkan_cache.bin");
-
+    Renderer::Renderer(const Display &display, const std::string &root_asset_directory) :
+        _display(display),
+        _context(_display),
+        _swapchain(_context.device, _context.physical, _display),
+        _memory(_context.device, _context.physical),
+        _meshes(_context.device, _context.physical, _memory, _context.transfer_pool),
+        _shaders(_context.device),
+        _pipelines(_context.device, _context.physical, root_asset_directory + "/vulkan_cache.bin"),
+        _uniforms(_context.device, _context.physical, _memory, _context.transfer_pool),
+        _textures(_context.device, _context.physical, _memory, _context.transfer_pool),
+        _frame_contexts(_context.device, _context.graphics_pool),
+        _forwardpass(VkRenderPass_create(_context.device,
+                                         _context.physical.samples,
+                                         _swapchain.surface_format.format,
+                                         _context.physical.depth_format)) {
         // Setup the color buffer
         TextureDescriptor color_descriptor;
         color_descriptor.width = _swapchain.extent.width;
@@ -43,14 +34,8 @@ namespace Dynamo::Graphics {
         depth_stencil_descriptor.format = TextureFormat::DepthSurface;
         _depth_stencil_texture = build_texture(depth_stencil_descriptor);
 
-        // Renderpass and framebuffers
-        VkFormat surface_color_format = _swapchain.surface_format.format;
-        VkFormat surface_depth_format = _physical.depth_format;
-        _forwardpass = VkRenderPass_create(_device, _physical.samples, surface_color_format, surface_depth_format);
+        // Build framebuffers
         rebuild_framebuffers();
-
-        // Frame contexts
-        _frame_contexts = FrameContextList(_device, _graphics_pool);
 
         // Color fill clear value
         _clear[0].color.float32[0] = 0;
@@ -65,46 +50,29 @@ namespace Dynamo::Graphics {
 
     Renderer::~Renderer() {
         // Wait for device queues to finish processing
-        vkDeviceWaitIdle(_device);
+        vkDeviceWaitIdle(_context.device);
 
         // Cache built pipelines
         _pipelines.write_to_disk();
 
-        // High-level objects
-        _frame_contexts.destroy();
-        _pipelines.destroy();
-        _textures.destroy(_memory);
-        _uniforms.destroy(_memory);
-        _meshes.destroy(_memory);
-        _shaders.destroy();
-        _memory.destroy();
+        // Destroy resources
         _swapchain.destroy();
-
-        // Vulkan core objects
         for (VkFramebuffer framebuffer : _framebuffers) {
-            vkDestroyFramebuffer(_device, framebuffer, nullptr);
+            vkDestroyFramebuffer(_context.device, framebuffer, nullptr);
         }
-        vkDestroyRenderPass(_device, _forwardpass, nullptr);
-        vkDestroyCommandPool(_device, _graphics_pool, nullptr);
-        vkDestroyCommandPool(_device, _transfer_pool, nullptr);
-        vkDestroyDevice(_device, nullptr);
-        vkDestroySurfaceKHR(_instance, _surface, nullptr);
-#ifdef DYN_DEBUG
-        vkDestroyDebugUtilsMessengerEXT(_instance, _debugger, nullptr);
-#endif
-        vkDestroyInstance(_instance, nullptr);
+        vkDestroyRenderPass(_context.device, _forwardpass, nullptr);
     }
 
     void Renderer::rebuild_framebuffers() {
         for (VkFramebuffer framebuffer : _framebuffers) {
-            vkDestroyFramebuffer(_device, framebuffer, nullptr);
+            vkDestroyFramebuffer(_context.device, framebuffer, nullptr);
         }
         _framebuffers.clear();
 
         for (VkImageView view : _swapchain.views) {
             std::array<VkImageView, 3> views;
             unsigned count = 0;
-            if (_physical.samples != VK_SAMPLE_COUNT_1_BIT) {
+            if (_context.physical.samples != VK_SAMPLE_COUNT_1_BIT) {
                 views[count++] = _textures.get(_color_texture).view;
                 views[count++] = _textures.get(_depth_stencil_texture).view;
                 views[count++] = view;
@@ -112,7 +80,7 @@ namespace Dynamo::Graphics {
                 views[count++] = view;
                 views[count++] = _textures.get(_depth_stencil_texture).view;
             }
-            _framebuffers.push_back(VkFramebuffer_create(_device,
+            _framebuffers.push_back(VkFramebuffer_create(_context.device,
                                                          _forwardpass,
                                                          _swapchain.extent,
                                                          views.begin(),
@@ -122,10 +90,10 @@ namespace Dynamo::Graphics {
     }
 
     void Renderer::rebuild_swapchain() {
-        vkDeviceWaitIdle(_device);
+        vkDeviceWaitIdle(_context.device);
 
         // Rebuild the swapchain
-        _swapchain = Swapchain(_device, _physical, _display, _swapchain);
+        _swapchain = Swapchain(_context.device, _context.physical, _display, _swapchain);
 
         // Rebuild the color texture
         TextureDescriptor color_descriptor;
@@ -159,19 +127,19 @@ namespace Dynamo::Graphics {
         _clear[1].depthStencil.stencil = stencil;
     }
 
-    Mesh Renderer::build_mesh(const MeshDescriptor &descriptor) { return _meshes.build(descriptor, _memory); }
+    Mesh Renderer::build_mesh(const MeshDescriptor &descriptor) { return _meshes.build(descriptor); }
 
-    void Renderer::destroy_mesh(Mesh mesh) { _meshes.destroy(mesh, _memory); }
+    void Renderer::destroy_mesh(Mesh mesh) { _meshes.destroy(mesh); }
 
     Shader Renderer::build_shader(const ShaderDescriptor &descriptor) { return _shaders.build(descriptor); }
 
     void Renderer::destroy_shader(Shader shader) { _shaders.destroy(shader); }
 
     Texture Renderer::build_texture(const TextureDescriptor &descriptor) {
-        return _textures.build(descriptor, _swapchain, _memory);
+        return _textures.build(descriptor, _swapchain);
     }
 
-    void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture, _memory); }
+    void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture); }
 
     Pipeline Renderer::build_pipeline(const PipelineDescriptor &descriptor) {
         return _pipelines.build(descriptor, _forwardpass, _swapchain, _shaders, _uniforms, _memory);
@@ -181,7 +149,7 @@ namespace Dynamo::Graphics {
         // Free allocated descriptor / push constant uniforms
         PipelineInstance &instance = _pipelines.get(pipeline);
         for (Uniform uniform : instance.uniforms) {
-            _uniforms.destroy(uniform, _memory);
+            _uniforms.destroy(uniform);
         }
     }
 
@@ -209,10 +177,10 @@ namespace Dynamo::Graphics {
 
     void Renderer::render() {
         const FrameContext &frame = _frame_contexts.next();
-        vkWaitForFences(_device, 1, &frame.sync_fence, VK_TRUE, UINT64_MAX);
+        vkWaitForFences(_context.device, 1, &frame.sync_fence, VK_TRUE, UINT64_MAX);
 
         unsigned image_index;
-        VkResult acquire_result = vkAcquireNextImageKHR(_device,
+        VkResult acquire_result = vkAcquireNextImageKHR(_context.device,
                                                         _swapchain.handle,
                                                         UINT64_MAX,
                                                         frame.sync_render_start,
@@ -225,7 +193,7 @@ namespace Dynamo::Graphics {
             VkResult_check("Acquire Image", acquire_result);
         }
 
-        VkResult_check("Reset Fence", vkResetFences(_device, 1, &frame.sync_fence));
+        VkResult_check("Reset Fence", vkResetFences(_context.device, 1, &frame.sync_fence));
         VkResult_check("Reset Command Buffer", vkResetCommandBuffer(frame.command_buffer, 0));
 
         VkCommandBufferBeginInfo begin_info = {};
@@ -335,7 +303,7 @@ namespace Dynamo::Graphics {
 
         // Submit commands
         VkQueue queue;
-        vkGetDeviceQueue(_device, _physical.graphics_queues.index, 0, &queue);
+        vkGetDeviceQueue(_context.device, _context.physical.graphics_queues.index, 0, &queue);
 
         VkSubmitInfo submit_info = {};
         VkPipelineStageFlags wait_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;

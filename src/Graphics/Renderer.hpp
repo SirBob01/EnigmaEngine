@@ -14,36 +14,26 @@
 #include <Graphics/Vulkan/Swapchain.hpp>
 #include <Graphics/Vulkan/TextureRegistry.hpp>
 #include <Graphics/Vulkan/UniformRegistry.hpp>
+#include <Graphics/Vulkan/VulkanContext.hpp>
 #include <Math/Color.hpp>
 
 namespace Dynamo::Graphics {
-    using namespace Vulkan;
-
     /**
      * @brief Vulkan-powered 3D Renderer.
      *
      */
     class Renderer {
         const Display &_display;
+        Vulkan::VulkanContext _context;
+        Vulkan::Swapchain _swapchain;
 
-        VkInstance _instance;
-        VkDebugUtilsMessengerEXT _debugger;
-        VkSurfaceKHR _surface;
-
-        PhysicalDevice _physical;
-        VkDevice _device;
-
-        Swapchain _swapchain;
-
-        VkCommandPool _graphics_pool;
-        VkCommandPool _transfer_pool;
-
-        MemoryPool _memory;
-        MeshRegistry _meshes;
-        ShaderRegistry _shaders;
-        PipelineRegistry _pipelines;
-        UniformRegistry _uniforms;
-        TextureRegistry _textures;
+        Vulkan::MemoryPool _memory;
+        Vulkan::MeshRegistry _meshes;
+        Vulkan::ShaderRegistry _shaders;
+        Vulkan::PipelineRegistry _pipelines;
+        Vulkan::UniformRegistry _uniforms;
+        Vulkan::TextureRegistry _textures;
+        Vulkan::FrameContextList _frame_contexts;
 
         Texture _color_texture;
         Texture _depth_stencil_texture;
@@ -51,8 +41,6 @@ namespace Dynamo::Graphics {
         VkRenderPass _forwardpass;
         std::vector<VkFramebuffer> _framebuffers;
         std::array<VkClearValue, 2> _clear;
-
-        FrameContextList _frame_contexts;
 
         std::vector<Model> _models;
 

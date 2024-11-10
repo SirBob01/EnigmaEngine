@@ -8,6 +8,18 @@ namespace Dynamo::Graphics::Vulkan {
 
     ShaderRegistry::ShaderRegistry(VkDevice device) : _device(device) {}
 
+    ShaderRegistry::~ShaderRegistry() {
+        // Destroy descriptor layouts
+        for (const auto &[key, layout] : _descriptor_layouts) {
+            vkDestroyDescriptorSetLayout(_device, layout, nullptr);
+        }
+        _descriptor_layouts.clear();
+
+        // Destroy shader modules
+        _modules.foreach ([&](ShaderModule &module) { vkDestroyShaderModule(_device, module.handle, nullptr); });
+        _modules.clear();
+    }
+
     std::vector<uint32_t> ShaderRegistry::compile(const std::string &name,
                                                   const std::string &code,
                                                   VkShaderStageFlagBits stage,
@@ -282,17 +294,5 @@ namespace Dynamo::Graphics::Vulkan {
         ShaderModule &module = _modules.get(shader);
         vkDestroyShaderModule(_device, module.handle, nullptr);
         _modules.remove(shader);
-    }
-
-    void ShaderRegistry::destroy() {
-        // Destroy descriptor layouts
-        for (const auto &[key, layout] : _descriptor_layouts) {
-            vkDestroyDescriptorSetLayout(_device, layout, nullptr);
-        }
-        _descriptor_layouts.clear();
-
-        // Destroy shader modules
-        _modules.foreach ([&](ShaderModule &module) { vkDestroyShaderModule(_device, module.handle, nullptr); });
-        _modules.clear();
     }
 } // namespace Dynamo::Graphics::Vulkan
