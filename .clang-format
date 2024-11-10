@@ -23,3 +23,5 @@ BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon
 BreakStringLiterals: true
+PackConstructorInitializers: CurrentLine
+AlignAfterOpenBracket: true

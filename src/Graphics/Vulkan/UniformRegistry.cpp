@@ -2,8 +2,12 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    UniformRegistry::UniformRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool) :
-        _device(device) {
+    UniformRegistry::UniformRegistry(VkDevice device,
+                                     const PhysicalDevice &physical,
+                                     MemoryPool &memory,
+                                     VkCommandPool transfer_pool) :
+        _device(device),
+        _memory(memory) {
         std::array<VkDescriptorPoolSize, 2> sizes = {
             VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1024},
             VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
@@ -14,9 +18,13 @@ namespace Dynamo::Graphics::Vulkan {
         _push_constant_buffer = VirtualMemory(128);
     }
 
-    VirtualBuffer UniformRegistry::allocate_uniform_buffer(VkDescriptorSet descriptor_set,
-                                                           DescriptorBinding &binding,
-                                                           MemoryPool &memory) {
+    UniformRegistry::~UniformRegistry() {
+        vkDestroyDescriptorPool(_device, _pool, nullptr);
+        _variables.foreach ([&](UniformVariable &var) { free_allocation(var); });
+        _variables.clear();
+    }
+
+    VirtualBuffer UniformRegistry::allocate_uniform_buffer(VkDescriptorSet descriptor_set, DescriptorBinding &binding) {
         // Allocate shared uniform binding once only
         VirtualBuffer buffer;
         unsigned size = binding.size * binding.count;
@@ -27,9 +35,9 @@ namespace Dynamo::Graphics::Vulkan {
                 shared.ref_count++;
                 buffer = shared.descriptor_buffer;
             } else {
-                buffer = memory.build(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                      size);
+                buffer = _memory.build(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                       size);
 
                 SharedVariable shared;
                 shared.ref_count = 1;
@@ -37,9 +45,9 @@ namespace Dynamo::Graphics::Vulkan {
                 _shared.emplace(binding.name, shared);
             }
         } else {
-            buffer = memory.build(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                  size);
+            buffer = _memory.build(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                   size);
         }
 
         // Write each binding array element
@@ -63,13 +71,13 @@ namespace Dynamo::Graphics::Vulkan {
         return buffer;
     }
 
-    void UniformRegistry::free_allocation(const UniformVariable &var, MemoryPool &memory) {
+    void UniformRegistry::free_allocation(const UniformVariable &var) {
         switch (var.type) {
         case UniformType::Descriptor: {
             auto shared_it = _shared.find(var.name);
             if (var.descriptor.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
                 if (shared_it == _shared.end() || shared_it->second.ref_count == 1) {
-                    memory.free(var.descriptor.buffer);
+                    _memory.free(var.descriptor.buffer);
                 } else if (shared_it != _shared.end()) {
                     shared_it->second.ref_count--;
                 }
@@ -88,7 +96,7 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    DescriptorAllocation UniformRegistry::allocate(const DescriptorSet &set, MemoryPool &memory) {
+    DescriptorAllocation UniformRegistry::allocate(const DescriptorSet &set) {
         // TODO: Recycle descriptor sets that are not used
         // TODO: Need to allocate a new descriptor pool if this fails
         DescriptorAllocation allocation;
@@ -107,7 +115,7 @@ namespace Dynamo::Graphics::Vulkan {
 
             // Handle each descriptor type
             if (binding.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-                var.descriptor.buffer = allocate_uniform_buffer(allocation.descriptor_set, binding, memory);
+                var.descriptor.buffer = allocate_uniform_buffer(allocation.descriptor_set, binding);
             }
             allocation.uniforms.push_back(_variables.insert(var));
         }
@@ -190,15 +198,9 @@ namespace Dynamo::Graphics::Vulkan {
         vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
     }
 
-    void UniformRegistry::destroy(Uniform uniform, MemoryPool &memory) {
+    void UniformRegistry::destroy(Uniform uniform) {
         const UniformVariable &var = _variables.get(uniform);
-        free_allocation(var, memory);
+        free_allocation(var);
         _variables.remove(uniform);
-    }
-
-    void UniformRegistry::destroy(MemoryPool &memory) {
-        vkDestroyDescriptorPool(_device, _pool, nullptr);
-        _variables.foreach ([&](UniformVariable &var) { free_allocation(var, memory); });
-        _variables.clear();
     }
 } // namespace Dynamo::Graphics::Vulkan

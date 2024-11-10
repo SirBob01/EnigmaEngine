@@ -116,6 +116,8 @@ namespace Dynamo::Graphics::Vulkan {
                                      VkFormat color_format,
                                      VkFormat depth_stencil_format);
 
+    VkPipelineCache VkPipelineCache_create(VkDevice device, const std::string &filename);
+
     VkPipeline VkPipeline_create(VkDevice device,
                                  VkPipelineCache cache,
                                  VkPipelineLayout layout,

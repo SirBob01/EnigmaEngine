@@ -1,5 +1,5 @@
 #include <Graphics/Vulkan/Utils.hpp>
-#include <vulkan/vulkan_core.h>
+#include <fstream>
 
 static PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebuggerDispatch;
 static PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebuggerDispatch;
@@ -1572,6 +1572,26 @@ namespace Dynamo::Graphics::Vulkan {
         VkResult result = vkCreateRenderPass(device, &renderpass_info, nullptr, &renderpass);
         VkResult_check("Create Render Pass", result);
         return renderpass;
+    }
+
+    VkPipelineCache VkPipelineCache_create(VkDevice device, const std::string &filename) {
+        std::ifstream ifstream;
+        ifstream.open(filename, std::ios::app | std::ios::binary);
+        ifstream.seekg(0, ifstream.end);
+        size_t size = ifstream.tellg();
+        ifstream.seekg(0, ifstream.beg);
+        std::vector<char> buffer(size);
+        ifstream.read(buffer.data(), size);
+        ifstream.close();
+
+        VkPipelineCacheCreateInfo cache_info;
+        cache_info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+        cache_info.initialDataSize = size;
+        cache_info.pInitialData = buffer.data();
+
+        VkPipelineCache cache;
+        VkResult_check("Create Pipeline Cache", vkCreatePipelineCache(device, &cache_info, nullptr, &cache));
+        return cache;
     }
 
     VkPipeline VkPipeline_create(VkDevice device,

@@ -43,7 +43,7 @@ namespace Dynamo::Graphics::Vulkan {
         using MemoryGroup = std::vector<Memory>;
 
         VkDevice _device;
-        const PhysicalDevice *_physical;
+        const PhysicalDevice &_physical;
         std::vector<MemoryGroup> _groups;
 
         unsigned find_type_index(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) const;
@@ -52,7 +52,7 @@ namespace Dynamo::Graphics::Vulkan {
 
       public:
         MemoryPool(VkDevice device, const PhysicalDevice &physical);
-        MemoryPool() = default;
+        ~MemoryPool();
 
         VirtualBuffer build(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size);
 
@@ -70,7 +70,5 @@ namespace Dynamo::Graphics::Vulkan {
         void free(const VirtualBuffer &allocation);
 
         void free(const VirtualImage &allocation);
-
-        void destroy();
     };
 }; // namespace Dynamo::Graphics::Vulkan

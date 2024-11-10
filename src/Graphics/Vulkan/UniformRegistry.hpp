@@ -66,21 +66,24 @@ namespace Dynamo::Graphics::Vulkan {
     class UniformRegistry {
         VkDevice _device;
         VkDescriptorPool _pool;
+        MemoryPool &_memory;
         VirtualMemory _push_constant_buffer;
 
         std::unordered_map<std::string, SharedVariable> _shared;
         SparseArray<Uniform, UniformVariable> _variables;
 
-        VirtualBuffer
-        allocate_uniform_buffer(VkDescriptorSet descriptor_set, DescriptorBinding &binding, MemoryPool &memory);
+        VirtualBuffer allocate_uniform_buffer(VkDescriptorSet descriptor_set, DescriptorBinding &binding);
 
-        void free_allocation(const UniformVariable &var, MemoryPool &memory);
+        void free_allocation(const UniformVariable &var);
 
       public:
-        UniformRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
-        UniformRegistry() = default;
+        UniformRegistry(VkDevice device,
+                        const PhysicalDevice &physical,
+                        MemoryPool &memory,
+                        VkCommandPool transfer_pool);
+        ~UniformRegistry();
 
-        DescriptorAllocation allocate(const DescriptorSet &set, MemoryPool &memory);
+        DescriptorAllocation allocate(const DescriptorSet &set);
 
         PushConstantAllocation allocate(const PushConstant &push_constant);
 
@@ -92,8 +95,6 @@ namespace Dynamo::Graphics::Vulkan {
 
         void bind(Uniform uniform, const TextureInstance &texture, unsigned index);
 
-        void destroy(Uniform uniform, MemoryPool &memory);
-
-        void destroy(MemoryPool &memory);
+        void destroy(Uniform uniform);
     };
 } // namespace Dynamo::Graphics::Vulkan

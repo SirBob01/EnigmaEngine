@@ -4,13 +4,25 @@
 
 namespace Dynamo::Graphics::Vulkan {
     MemoryPool::MemoryPool(VkDevice device, const PhysicalDevice &physical) :
-        _device(device), _physical(&physical), _groups(physical.memory.memoryTypeCount) {}
+        _device(device),
+        _physical(physical),
+        _groups(physical.memory.memoryTypeCount) {}
+
+    MemoryPool::~MemoryPool() {
+        // Free device memory
+        for (const MemoryGroup &group : _groups) {
+            for (const Memory &memory : group) {
+                vkFreeMemory(_device, memory.handle, nullptr);
+            }
+        }
+        _groups.clear();
+    }
 
     unsigned MemoryPool::find_type_index(const VkMemoryRequirements &requirements,
                                          VkMemoryPropertyFlags properties) const {
         unsigned type_index = 0;
-        while (type_index < _physical->memory.memoryTypeCount) {
-            VkMemoryType type = _physical->memory.memoryTypes[type_index];
+        while (type_index < _physical.memory.memoryTypeCount) {
+            VkMemoryType type = _physical.memory.memoryTypes[type_index];
             bool has_type = requirements.memoryTypeBits & (1 << type_index);
             bool has_properties = (properties & type.propertyFlags) == properties;
             if (has_type && has_properties) {
@@ -121,15 +133,5 @@ namespace Dynamo::Graphics::Vulkan {
         vkDestroyImage(_device, allocation.image, nullptr);
         Memory &memory = _groups[allocation.key.type][allocation.key.index];
         memory.allocator.free(allocation.key.offset);
-    }
-
-    void MemoryPool::destroy() {
-        // Free device memory
-        for (const MemoryGroup &group : _groups) {
-            for (const Memory &memory : group) {
-                vkFreeMemory(_device, memory.handle, nullptr);
-            }
-        }
-        _groups.clear();
     }
 } // namespace Dynamo::Graphics::Vulkan

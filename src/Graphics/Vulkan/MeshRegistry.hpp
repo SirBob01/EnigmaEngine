@@ -25,20 +25,19 @@ namespace Dynamo::Graphics::Vulkan {
         VkDevice _device;
         VkCommandBuffer _command_buffer;
         VkQueue _transfer_queue;
+        MemoryPool &_memory;
         SparseArray<Mesh, MeshInstance> _instances;
 
-        void write_vertices(MemoryPool &memory, const void *src, VirtualBuffer &dst, unsigned size);
+        void write_vertices(const void *src, VirtualBuffer &dst, unsigned size);
 
       public:
-        MeshRegistry(VkDevice device, const PhysicalDevice &physical, VkCommandPool transfer_pool);
-        MeshRegistry() = default;
+        MeshRegistry(VkDevice device, const PhysicalDevice &physical, MemoryPool &memory, VkCommandPool transfer_pool);
+        ~MeshRegistry();
 
         MeshInstance &get(Mesh mesh);
 
-        Mesh build(const MeshDescriptor &descriptor, MemoryPool &memory);
+        Mesh build(const MeshDescriptor &descriptor);
 
-        void destroy(Mesh mesh, MemoryPool &memory);
-
-        void destroy(MemoryPool &memory);
+        void destroy(Mesh mesh);
     };
 } // namespace Dynamo::Graphics::Vulkan

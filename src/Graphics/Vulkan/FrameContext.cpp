@@ -16,17 +16,17 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    const FrameContext &FrameContextList::next() {
-        FrameContext &context = _contexts[_index];
-        _index = (_index + 1) % MAX_FRAMES_IN_FLIGHT;
-        return context;
-    }
-
-    void FrameContextList::destroy() {
+    FrameContextList::~FrameContextList() {
         for (const FrameContext &context : _contexts) {
             vkDestroyFence(_device, context.sync_fence, nullptr);
             vkDestroySemaphore(_device, context.sync_render_start, nullptr);
             vkDestroySemaphore(_device, context.sync_render_done, nullptr);
         }
+    }
+
+    const FrameContext &FrameContextList::next() {
+        FrameContext &context = _contexts[_index];
+        _index = (_index + 1) % MAX_FRAMES_IN_FLIGHT;
+        return context;
     }
 } // namespace Dynamo::Graphics::Vulkan

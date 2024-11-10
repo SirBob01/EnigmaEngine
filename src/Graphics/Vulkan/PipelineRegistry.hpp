@@ -110,7 +110,7 @@ namespace Dynamo::Graphics::Vulkan {
 
     class PipelineRegistry {
         VkDevice _device;
-        const PhysicalDevice *_physical;
+        const PhysicalDevice &_physical;
 
         std::ofstream _ofstream;
         VkPipelineCache _pipeline_cache;
@@ -122,7 +122,7 @@ namespace Dynamo::Graphics::Vulkan {
 
       public:
         PipelineRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename);
-        PipelineRegistry() = default;
+        ~PipelineRegistry();
 
         Pipeline build(const PipelineDescriptor &descriptor,
                        VkRenderPass renderpass,
@@ -132,8 +132,6 @@ namespace Dynamo::Graphics::Vulkan {
                        MemoryPool &memory);
 
         PipelineInstance &get(Pipeline pipeline);
-
-        void destroy();
 
         void write_to_disk();
     };

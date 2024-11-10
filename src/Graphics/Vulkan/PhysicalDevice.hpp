@@ -5,7 +5,6 @@
 #include <vulkan/vulkan_core.h>
 
 namespace Dynamo::Graphics::Vulkan {
-
     struct QueueFamily {
         unsigned index = 0;
         unsigned count = 0;
@@ -37,7 +36,6 @@ namespace Dynamo::Graphics::Vulkan {
         QueueFamily transfer_queues;
 
         PhysicalDevice(VkPhysicalDevice handle, VkSurfaceKHR surface);
-        PhysicalDevice() = default;
 
         static PhysicalDevice select_best(VkInstance instance, VkSurfaceKHR surface);
 

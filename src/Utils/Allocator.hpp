@@ -5,6 +5,9 @@
 #include <string>
 #include <unordered_map>
 
+// Enable this to visualize heap growth and defragmentation behavior
+// #define DEBUG_ALLOCATOR
+
 namespace Dynamo {
     /**
      * @brief Round up a size to be a multiple of alignment.
