@@ -51,21 +51,21 @@ namespace Dynamo::Graphics::Vulkan {
         MemoryPool(VkDevice device, const PhysicalDevice &physical);
         ~MemoryPool();
 
-        VirtualBuffer build(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size);
+        VirtualBuffer allocate_buffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size);
 
-        VirtualImage build(const VkExtent3D &extent,
-                           VkFormat format,
-                           VkImageLayout layout,
-                           VkImageType type,
-                           VkImageTiling tiling,
-                           VkImageUsageFlags usage,
-                           VkSampleCountFlagBits samples,
-                           VkImageCreateFlags flags,
-                           unsigned mip_levels,
-                           unsigned array_layers);
+        VirtualImage allocate_image(const VkExtent3D &extent,
+                                    VkFormat format,
+                                    VkImageLayout layout,
+                                    VkImageType type,
+                                    VkImageTiling tiling,
+                                    VkImageUsageFlags usage,
+                                    VkSampleCountFlagBits samples,
+                                    VkImageCreateFlags flags,
+                                    unsigned mip_levels,
+                                    unsigned array_layers);
 
-        void free(const VirtualBuffer &allocation);
+        void free_buffer(const VirtualBuffer &allocation);
 
-        void free(const VirtualImage &allocation);
+        void free_image(const VirtualImage &allocation);
     };
 }; // namespace Dynamo::Graphics::Vulkan

@@ -15,7 +15,7 @@ namespace Dynamo::Graphics::Vulkan {
     MeshRegistry::~MeshRegistry() {
         _instances.foreach ([&](MeshInstance &instance) {
             for (VirtualBuffer &buffer : instance.virtual_buffers) {
-                _memory.free(buffer);
+                _memory.free_buffer(buffer);
             }
         });
         _instances.clear();
@@ -28,16 +28,16 @@ namespace Dynamo::Graphics::Vulkan {
         region.size = size;
 
         VirtualBuffer staging =
-            _memory.build(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                          size);
+            _memory.allocate_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                    size);
         std::memcpy(staging.mapped, src, size);
 
         VkCommandBuffer_immediate_start(_command_buffer);
         vkCmdCopyBuffer(_command_buffer, staging.buffer, dst.buffer, 1, &region);
         VkCommandBuffer_immediate_end(_command_buffer, _transfer_queue);
 
-        _memory.free(staging);
+        _memory.free_buffer(staging);
     }
 
     Mesh MeshRegistry::build(const MeshDescriptor &descriptor) {
@@ -49,9 +49,10 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Write attributes to the buffers
         for (auto &attribute : descriptor.attributes) {
-            VirtualBuffer vertex = _memory.build(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                                 attribute.size());
+            VirtualBuffer vertex =
+                _memory.allocate_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                        attribute.size());
             instance.attribute_offsets.push_back(vertex.offset);
             instance.buffers.push_back(vertex.buffer);
             instance.virtual_buffers.push_back(vertex);
@@ -69,9 +70,10 @@ namespace Dynamo::Graphics::Vulkan {
                 u16_indices.push_back(index);
             }
             unsigned size = u16_indices.size() * 2;
-            VirtualBuffer index = _memory.build(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                                size);
+            VirtualBuffer index =
+                _memory.allocate_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                        size);
             instance.index_buffer = index.buffer;
             instance.index_offset = index.offset;
             instance.virtual_buffers.push_back(index);
@@ -87,9 +89,10 @@ namespace Dynamo::Graphics::Vulkan {
                 u32_indices.push_back(index);
             }
             unsigned size = u32_indices.size() * 4;
-            VirtualBuffer index = _memory.build(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                                size);
+            VirtualBuffer index =
+                _memory.allocate_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                        size);
             instance.index_buffer = index.buffer;
             instance.index_offset = index.offset;
             instance.virtual_buffers.push_back(index);
@@ -111,7 +114,7 @@ namespace Dynamo::Graphics::Vulkan {
     void MeshRegistry::destroy(Mesh mesh) {
         MeshInstance &instance = _instances.get(mesh);
         for (VirtualBuffer &buffer : instance.virtual_buffers) {
-            _memory.free(buffer);
+            _memory.free_buffer(buffer);
         }
         _instances.remove(mesh);
     }

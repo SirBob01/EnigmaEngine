@@ -153,7 +153,7 @@ namespace Dynamo::Graphics::Vulkan {
                                   unsigned count);
 
     VkDescriptorPool
-    VkDescriptorPool_create(VkDevice device, VkDescriptorPoolSize *sizes, unsigned size_count, unsigned max_sets);
+    VkDescriptorPool_create(VkDevice device, const VkDescriptorPoolSize *sizes, unsigned size_count, unsigned max_sets);
 
     void VkDescriptorSet_allocate(VkDevice device,
                                   VkDescriptorPool pool,

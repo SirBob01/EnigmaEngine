@@ -6,6 +6,7 @@
 #include <Graphics/Mesh.hpp>
 #include <Graphics/Model.hpp>
 #include <Graphics/Texture.hpp>
+#include <Graphics/Vulkan/DescriptorPool.hpp>
 #include <Graphics/Vulkan/FrameContext.hpp>
 #include <Graphics/Vulkan/MeshRegistry.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
@@ -28,6 +29,7 @@ namespace Dynamo::Graphics {
         Vulkan::Swapchain _swapchain;
 
         Vulkan::MemoryPool _memory;
+        Vulkan::DescriptorPool _descriptors;
         Vulkan::MeshRegistry _meshes;
         Vulkan::ShaderRegistry _shaders;
         Vulkan::PipelineRegistry _pipelines;
@@ -45,9 +47,17 @@ namespace Dynamo::Graphics {
         std::vector<Model> _models;
 
         // Important TODO:
+        // * Proper render pass system to implement algorithms like Forward+
+        //      - Allow creating render passes at the user level
+        //      - Users can specify number of color attachments and types
+        //      - Users should have control over the render target area
+        //      - Users should have control over which textures to use as attachments
+        //      - Users should have control over attachment clear values
+        //      - Revamp render() workflow, need to arbitrarily begin and end renderpasses
         // * Draw-to-texture?
         // * Decouple Uniform allocation from Pipeline?
-        //      - Pipeline creation is expensive since we need to hash the descriptors (these are huge)
+        //      - Pipeline creation is expensive since we need to hash the layout and pipeline descriptors
+        //      - Those are huge structs, computing them for each object created will be super slow
         //      - Pipeline should be a Pipeline/Layout pair + metadata for uniform allocation
         //      - Uniforms are quicker to allocate
         // * Customizable color blending (do we really need this?)

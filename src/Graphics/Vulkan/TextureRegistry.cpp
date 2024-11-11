@@ -16,7 +16,7 @@ namespace Dynamo::Graphics::Vulkan {
     TextureRegistry::~TextureRegistry() {
         _instances.foreach ([&](TextureInstance &instance) {
             vkDestroyImageView(_device, instance.view, nullptr);
-            _memory.free(instance.image);
+            _memory.free_image(instance.image);
         });
         _instances.clear();
 
@@ -32,9 +32,9 @@ namespace Dynamo::Graphics::Vulkan {
                                        const VkExtent3D &extent,
                                        const VkImageSubresourceRange &subresources) {
         VirtualBuffer staging =
-            _memory.build(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                          texels.size());
+            _memory.allocate_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                    texels.size());
         std::memcpy(staging.mapped, texels.data(), texels.size());
 
         // Transition image to optimal layout for buffer copying
@@ -83,7 +83,7 @@ namespace Dynamo::Graphics::Vulkan {
         VkCommandBuffer_immediate_end(_command_buffer, _transfer_queue);
 
         // Free the staging buffer
-        _memory.free(staging);
+        _memory.free_buffer(staging);
     }
 
     Texture TextureRegistry::build(const TextureDescriptor &descriptor, const Swapchain &swapchain) {
@@ -165,16 +165,16 @@ namespace Dynamo::Graphics::Vulkan {
             break;
         }
 
-        instance.image = _memory.build(extent,
-                                       format,
-                                       VK_IMAGE_LAYOUT_UNDEFINED,
-                                       type,
-                                       tiling,
-                                       usage,
-                                       samples,
-                                       flags,
-                                       subresources.levelCount,
-                                       subresources.layerCount);
+        instance.image = _memory.allocate_image(extent,
+                                                format,
+                                                VK_IMAGE_LAYOUT_UNDEFINED,
+                                                type,
+                                                tiling,
+                                                usage,
+                                                samples,
+                                                flags,
+                                                subresources.levelCount,
+                                                subresources.layerCount);
 
         // Copy texels to staging buffer, if any
         if (descriptor.texels.size()) {
@@ -200,7 +200,7 @@ namespace Dynamo::Graphics::Vulkan {
     void TextureRegistry::destroy(Texture texture) {
         const TextureInstance &instance = _instances.get(texture);
         vkDestroyImageView(_device, instance.view, nullptr);
-        _memory.free(instance.image);
+        _memory.free_image(instance.image);
         _instances.remove(texture);
     }
 } // namespace Dynamo::Graphics::Vulkan
