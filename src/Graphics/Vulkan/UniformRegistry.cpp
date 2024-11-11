@@ -2,95 +2,90 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
+    constexpr VkMemoryPropertyFlags UNIFORM_MEMORY_PROPERTIES =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
     // Limit of 128 bytes for push constants
     constexpr unsigned PUSH_CONSTANT_HEAP_SIZE = 128;
-    constexpr unsigned DESCRIPTOR_POOL_SIZE = 1024;
 
     UniformRegistry::UniformRegistry(VkDevice device,
                                      const PhysicalDevice &physical,
                                      MemoryPool &memory,
+                                     DescriptorPool &descriptors,
                                      VkCommandPool transfer_pool) :
         _device(device),
         _memory(memory),
-        _push_constant_buffer(PUSH_CONSTANT_HEAP_SIZE) {
-        std::array<VkDescriptorPoolSize, 2> sizes = {
-            VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, DESCRIPTOR_POOL_SIZE},
-            VkDescriptorPoolSize{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, DESCRIPTOR_POOL_SIZE},
-        };
-        _pool = VkDescriptorPool_create(device, sizes.data(), sizes.size(), DESCRIPTOR_POOL_SIZE);
-    }
+        _descriptors(descriptors),
+        _push_constant_buffer(PUSH_CONSTANT_HEAP_SIZE) {}
 
     UniformRegistry::~UniformRegistry() {
-        vkDestroyDescriptorPool(_device, _pool, nullptr);
-        _variables.foreach ([&](UniformVariable &var) { free_allocation(var); });
-        _variables.clear();
+        // Free uniform groups
+        _groups.foreach ([&](UniformGroupInstance &group) { free_group(group); });
+        _groups.clear();
     }
 
-    VirtualBuffer UniformRegistry::allocate_uniform_buffer(VkDescriptorSet descriptor_set, DescriptorBinding &binding) {
-        // Allocate shared uniform binding once only
-        VirtualBuffer buffer;
+    VirtualBuffer UniformRegistry::allocate_descriptor_binding(VkDescriptorSet set, const DescriptorBinding &binding) {
         unsigned size = binding.size * binding.count;
-        if (binding.shared) {
-            auto shared_it = _shared.find(binding.name);
-            if (shared_it != _shared.end()) {
-                SharedVariable &shared = shared_it->second;
-                shared.ref_count++;
-                buffer = shared.descriptor_buffer;
-            } else {
-                buffer = _memory.build(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                       size);
 
-                SharedVariable shared;
-                shared.ref_count = 1;
-                shared.descriptor_buffer = buffer;
-                _shared.emplace(binding.name, shared);
-            }
-        } else {
-            buffer = _memory.build(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                   size);
+        // Not shared, allocate a new buffer
+        if (!binding.shared) {
+            return _memory.allocate_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, UNIFORM_MEMORY_PROPERTIES, size);
         }
 
-        // Write each binding array element
-        for (unsigned i = 0; i < binding.count; i++) {
-            VkDescriptorBufferInfo buffer_info;
-            buffer_info.buffer = buffer.buffer;
-            buffer_info.offset = buffer.offset + i * binding.size;
-            buffer_info.range = binding.size;
-
-            VkWriteDescriptorSet write = {};
-            write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write.descriptorType = binding.type;
-            write.dstSet = descriptor_set;
-            write.dstBinding = binding.binding;
-            write.dstArrayElement = i;
-            write.descriptorCount = 1;
-            write.pBufferInfo = &buffer_info;
-            vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+        // If shared, find the allocation and increase ref count
+        auto shared_it = _shared_descriptors.find(binding.name);
+        if (shared_it != _shared_descriptors.end()) {
+            shared_it->second.ref_count++;
+            return shared_it->second.buffer;
         }
 
-        return buffer;
+        // No allocation was found, create a new one
+        SharedDescriptor shared;
+        shared.ref_count = 1;
+        shared.buffer = _memory.allocate_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, UNIFORM_MEMORY_PROPERTIES, size);
+        _shared_descriptors.emplace(binding.name, shared);
+        return shared.buffer;
     }
 
-    void UniformRegistry::free_allocation(const UniformVariable &var) {
+    unsigned UniformRegistry::allocate_push_constant_range(const PushConstantRange &range) {
+        // Not shared, allocate a new buffer
+        if (!range.shared) {
+            return _push_constant_buffer.reserve(range.block.size).value();
+        }
+
+        // If shared, find the allocation and increase ref count
+        auto shared_it = _shared_push_constants.find(range.name);
+        if (shared_it != _shared_push_constants.end()) {
+            shared_it->second.ref_count++;
+            return shared_it->second.offset;
+        }
+
+        // No allocation was found, create a new one
+        SharedPushConstant shared;
+        shared.ref_count = 1;
+        shared.offset = _push_constant_buffer.reserve(range.block.size).value();
+        _shared_push_constants.emplace(range.name, shared);
+        return shared.offset;
+    }
+
+    void UniformRegistry::free_uniform(const UniformInstance &var) {
         switch (var.type) {
         case UniformType::Descriptor: {
-            auto shared_it = _shared.find(var.name);
+            auto shared_it = _shared_descriptors.find(var.name);
             if (var.descriptor.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-                if (shared_it == _shared.end() || shared_it->second.ref_count == 1) {
-                    _memory.free(var.descriptor.buffer);
-                } else if (shared_it != _shared.end()) {
+                if (shared_it == _shared_descriptors.end() || shared_it->second.ref_count == 1) {
+                    _memory.free_buffer(var.descriptor.buffer);
+                } else if (shared_it != _shared_descriptors.end()) {
                     shared_it->second.ref_count--;
                 }
             }
             break;
         }
         case UniformType::PushConstant: {
-            auto shared_it = _shared.find(var.name);
-            if (shared_it == _shared.end() || shared_it->second.ref_count == 1) {
+            auto shared_it = _shared_push_constants.find(var.name);
+            if (shared_it == _shared_push_constants.end() || shared_it->second.ref_count == 1) {
                 _push_constant_buffer.free(var.push_constant.offset);
-            } else if (shared_it != _shared.end()) {
+            } else if (shared_it != _shared_push_constants.end()) {
                 shared_it->second.ref_count--;
             }
             break;
@@ -98,74 +93,93 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    DescriptorAllocation UniformRegistry::allocate(const DescriptorSet &set) {
-        // TODO: Recycle descriptor sets that are not used
-        // TODO: Need to allocate a new descriptor pool if this fails
-        DescriptorAllocation allocation;
-        VkDescriptorSet_allocate(_device, _pool, &set.layout, &allocation.descriptor_set, 1);
-
-        // Process uniform bindings
-        for (DescriptorBinding binding : set.bindings) {
-            UniformVariable var;
-            var.name = binding.name;
-            var.type = UniformType::Descriptor;
-            var.descriptor.type = binding.type;
-            var.descriptor.set = allocation.descriptor_set;
-            var.descriptor.binding = binding.binding;
-            var.descriptor.size = binding.size;
-            var.descriptor.count = binding.count;
-
-            // Handle each descriptor type
-            if (binding.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-                var.descriptor.buffer = allocate_uniform_buffer(allocation.descriptor_set, binding);
-            }
-            allocation.uniforms.push_back(_variables.insert(var));
+    void UniformRegistry::free_group(const UniformGroupInstance &group) {
+        // Free the descriptor sets
+        for (const VirtualDescriptorSet &set : group.v_sets) {
+            _descriptors.free_descriptor_set(set);
         }
 
-        return allocation;
+        // Free uniform variables
+        for (const Uniform uniform : group.uniforms) {
+            const UniformInstance &var = _uniforms.get(uniform);
+            free_uniform(var);
+            _uniforms.remove(uniform);
+        }
     }
 
-    PushConstantAllocation UniformRegistry::allocate(const PushConstant &push_constant) {
-        UniformVariable var;
-        var.name = push_constant.name;
-        var.type = UniformType::PushConstant;
-        var.push_constant.size = push_constant.range.size;
+    UniformGroup UniformRegistry::build(const std::vector<const DescriptorSetLayout *> &descriptor_set_layouts,
+                                        const std::vector<const PushConstantRange *> &push_constant_ranges) {
+        UniformGroupInstance group;
+        for (const DescriptorSetLayout *layout : descriptor_set_layouts) {
+            VirtualDescriptorSet set = _descriptors.allocate_descriptor_set(layout->handle);
+            group.v_sets.push_back(set);
+            group.descriptor_sets.push_back(set.set);
 
-        // Allocate shared uniform once only
-        if (push_constant.shared) {
-            auto shared_it = _shared.find(push_constant.name);
-            if (shared_it != _shared.end()) {
-                SharedVariable &shared = shared_it->second;
-                shared.ref_count++;
-                var.push_constant.offset = shared.push_constant_offset;
-            } else {
-                var.push_constant.offset = _push_constant_buffer.reserve(var.push_constant.size).value();
+            for (const DescriptorBinding &binding : layout->bindings) {
+                UniformInstance var;
+                var.name = binding.name;
+                var.type = UniformType::Descriptor;
+                var.descriptor.type = binding.type;
+                var.descriptor.set = set.set;
+                var.descriptor.binding = binding.binding;
+                var.descriptor.size = binding.size;
+                var.descriptor.count = binding.count;
 
-                SharedVariable shared;
-                shared.ref_count = 1;
-                shared.push_constant_offset = var.push_constant.offset;
-                _shared.emplace(push_constant.name, shared);
+                // Allocate uniform buffers
+                if (binding.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+                    var.descriptor.buffer = allocate_descriptor_binding(set.set, binding);
+                    for (unsigned i = 0; i < binding.count; i++) {
+                        VkDescriptorBufferInfo buffer_info;
+                        buffer_info.buffer = var.descriptor.buffer.buffer;
+                        buffer_info.offset = var.descriptor.buffer.offset + i * binding.size;
+                        buffer_info.range = binding.size;
+
+                        VkWriteDescriptorSet write = {};
+                        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                        write.descriptorType = binding.type;
+                        write.dstSet = set.set;
+                        write.dstBinding = binding.binding;
+                        write.dstArrayElement = i;
+                        write.descriptorCount = 1;
+                        write.pBufferInfo = &buffer_info;
+                        vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+                    }
+                }
+
+                group.uniforms.push_back(_uniforms.insert(var));
             }
-        } else {
-            var.push_constant.offset = _push_constant_buffer.reserve(var.push_constant.size).value();
+        }
+        for (const PushConstantRange *range : push_constant_ranges) {
+            UniformInstance var;
+            var.name = range->name;
+            var.type = UniformType::PushConstant;
+            var.push_constant.size = range->block.size;
+            var.push_constant.offset = allocate_push_constant_range(*range);
+            group.uniforms.push_back(_uniforms.insert(var));
         }
 
-        PushConstantAllocation allocation;
-        allocation.uniform = _variables.insert(var);
-        allocation.range = push_constant.range;
-        allocation.block_offset = var.push_constant.offset;
-
-        return allocation;
+        return _groups.insert(group);
     }
 
-    const UniformVariable &UniformRegistry::get(Uniform uniform) { return _variables.get(uniform); }
+    const UniformGroupInstance &UniformRegistry::get(UniformGroup group) const { return _groups.get(group); }
+
+    std::optional<Uniform> UniformRegistry::find(UniformGroup group, const std::string &uniform_name) const {
+        const UniformGroupInstance &instance = _groups.get(group);
+        for (const Uniform uniform : instance.uniforms) {
+            const UniformInstance &var = _uniforms.get(uniform);
+            if (var.name == uniform_name) {
+                return uniform;
+            }
+        }
+        return {};
+    }
 
     void *UniformRegistry::get_push_constant_data(unsigned block_offset) {
         return _push_constant_buffer.mapped(block_offset);
     }
 
     void UniformRegistry::write(Uniform uniform, void *data, unsigned index, unsigned count) {
-        const UniformVariable &var = _variables.get(uniform);
+        const UniformInstance &var = _uniforms.get(uniform);
         switch (var.type) {
         case UniformType::Descriptor: {
             char *dst = static_cast<char *>(var.descriptor.buffer.mapped);
@@ -181,7 +195,7 @@ namespace Dynamo::Graphics::Vulkan {
     }
 
     void UniformRegistry::bind(Uniform uniform, const TextureInstance &texture, unsigned index) {
-        UniformVariable &var = _variables.get(uniform);
+        UniformInstance &var = _uniforms.get(uniform);
 
         VkDescriptorImageInfo image_info;
         image_info.imageView = texture.view;
@@ -200,9 +214,9 @@ namespace Dynamo::Graphics::Vulkan {
         vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
     }
 
-    void UniformRegistry::destroy(Uniform uniform) {
-        const UniformVariable &var = _variables.get(uniform);
-        free_allocation(var);
-        _variables.remove(uniform);
+    void UniformRegistry::destroy(UniformGroup group) {
+        const UniformGroupInstance &instance = _groups.get(group);
+        free_group(instance);
+        _groups.remove(group);
     }
 } // namespace Dynamo::Graphics::Vulkan

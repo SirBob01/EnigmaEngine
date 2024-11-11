@@ -79,7 +79,8 @@ namespace Dynamo::Graphics::Vulkan {
         return allocation;
     }
 
-    VirtualBuffer MemoryPool::build(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size) {
+    VirtualBuffer
+    MemoryPool::allocate_buffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size) {
         // Create the buffer
         VkBuffer buffer = VkBuffer_create(_device, usage, size, nullptr, 0);
 
@@ -98,16 +99,16 @@ namespace Dynamo::Graphics::Vulkan {
         return v_buffer;
     }
 
-    VirtualImage MemoryPool::build(const VkExtent3D &extent,
-                                   VkFormat format,
-                                   VkImageLayout layout,
-                                   VkImageType type,
-                                   VkImageTiling tiling,
-                                   VkImageUsageFlags usage,
-                                   VkSampleCountFlagBits samples,
-                                   VkImageCreateFlags flags,
-                                   unsigned mip_levels,
-                                   unsigned array_layers) {
+    VirtualImage MemoryPool::allocate_image(const VkExtent3D &extent,
+                                            VkFormat format,
+                                            VkImageLayout layout,
+                                            VkImageType type,
+                                            VkImageTiling tiling,
+                                            VkImageUsageFlags usage,
+                                            VkSampleCountFlagBits samples,
+                                            VkImageCreateFlags flags,
+                                            unsigned mip_levels,
+                                            unsigned array_layers) {
         // Create the image
         VkImage image = VkImage_create(_device,
                                        extent,
@@ -137,13 +138,13 @@ namespace Dynamo::Graphics::Vulkan {
         return v_image;
     }
 
-    void MemoryPool::free(const VirtualBuffer &allocation) {
+    void MemoryPool::free_buffer(const VirtualBuffer &allocation) {
         vkDestroyBuffer(_device, allocation.buffer, nullptr);
         Memory &memory = _groups[allocation.key.type][allocation.key.index];
         memory.allocator.free(allocation.key.offset);
     }
 
-    void MemoryPool::free(const VirtualImage &allocation) {
+    void MemoryPool::free_image(const VirtualImage &allocation) {
         vkDestroyImage(_device, allocation.image, nullptr);
         Memory &memory = _groups[allocation.key.type][allocation.key.index];
         memory.allocator.free(allocation.key.offset);

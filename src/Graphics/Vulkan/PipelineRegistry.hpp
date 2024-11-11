@@ -15,16 +15,16 @@
 
 namespace Dynamo::Graphics::Vulkan {
     struct PipelineLayoutSettings {
-        std::vector<VkDescriptorSetLayout> descriptor_layouts;
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
         std::vector<VkPushConstantRange> push_constant_ranges;
 
         inline bool operator==(const PipelineLayoutSettings &other) const {
-            if (descriptor_layouts.size() != other.descriptor_layouts.size() ||
+            if (descriptor_set_layouts.size() != other.descriptor_set_layouts.size() ||
                 push_constant_ranges.size() != other.push_constant_ranges.size()) {
                 return false;
             }
-            for (unsigned i = 0; i < descriptor_layouts.size(); i++) {
-                if (descriptor_layouts[i] != other.descriptor_layouts[i]) {
+            for (unsigned i = 0; i < descriptor_set_layouts.size(); i++) {
+                if (descriptor_set_layouts[i] != other.descriptor_set_layouts[i]) {
                     return false;
                 }
             }
@@ -42,8 +42,8 @@ namespace Dynamo::Graphics::Vulkan {
         struct Hash {
             inline size_t operator()(const PipelineLayoutSettings &settings) const {
                 size_t hash_base = 0;
-                for (unsigned i = 0; i < settings.descriptor_layouts.size(); i++) {
-                    VkDescriptorSetLayout layout = settings.descriptor_layouts[i];
+                for (unsigned i = 0; i < settings.descriptor_set_layouts.size(); i++) {
+                    VkDescriptorSetLayout layout = settings.descriptor_set_layouts[i];
                     size_t hash = std::hash<VkDescriptorSetLayout>{}(layout);
                     hash_base ^= (hash << i);
                 }
@@ -102,10 +102,7 @@ namespace Dynamo::Graphics::Vulkan {
     struct PipelineInstance {
         VkPipelineLayout layout;
         VkPipeline handle;
-        std::vector<Uniform> uniforms;
-        std::vector<VkDescriptorSet> descriptor_sets;
-        std::vector<VkPushConstantRange> push_constant_ranges;
-        std::vector<unsigned> push_constant_offsets;
+        UniformGroup uniform_group;
     };
 
     class PipelineRegistry {

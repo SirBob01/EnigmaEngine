@@ -11,10 +11,10 @@
 #include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    struct DescriptorLayoutKey {
+    struct DescriptorSetLayoutKey {
         std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-        inline bool operator==(const DescriptorLayoutKey &other) const {
+        inline bool operator==(const DescriptorSetLayoutKey &other) const {
             // Descriptor set layouts are compatible as long as bindings are the same
             if (bindings.size() != other.bindings.size()) {
                 return false;
@@ -33,7 +33,7 @@ namespace Dynamo::Graphics::Vulkan {
         }
 
         struct Hash {
-            inline size_t operator()(const DescriptorLayoutKey &layout) const {
+            inline size_t operator()(const DescriptorSetLayoutKey &layout) const {
                 size_t hash_base = 0;
                 for (const VkDescriptorSetLayoutBinding &binding : layout.bindings) {
                     size_t hash0 = std::hash<unsigned>{}(binding.binding);
@@ -59,14 +59,14 @@ namespace Dynamo::Graphics::Vulkan {
         bool shared;
     };
 
-    struct DescriptorSet {
-        VkDescriptorSetLayout layout;
+    struct DescriptorSetLayout {
+        VkDescriptorSetLayout handle;
         std::vector<DescriptorBinding> bindings;
     };
 
-    struct PushConstant {
+    struct PushConstantRange {
         std::string name;
-        VkPushConstantRange range;
+        VkPushConstantRange block;
         bool shared;
     };
 
@@ -74,14 +74,14 @@ namespace Dynamo::Graphics::Vulkan {
         VkShaderModule handle;
         std::vector<VkVertexInputBindingDescription> bindings;
         std::vector<VkVertexInputAttributeDescription> attributes;
-        std::vector<DescriptorSet> descriptor_sets;
-        std::vector<PushConstant> push_constants;
+        std::vector<DescriptorSetLayout> descriptor_set_layouts;
+        std::vector<PushConstantRange> push_constant_ranges;
     };
 
     class ShaderRegistry {
         VkDevice _device;
         SparseArray<Shader, ShaderModule> _modules;
-        std::unordered_map<DescriptorLayoutKey, VkDescriptorSetLayout, DescriptorLayoutKey::Hash> _descriptor_layouts;
+        std::unordered_map<DescriptorSetLayoutKey, VkDescriptorSetLayout, DescriptorSetLayoutKey::Hash> _layouts;
 
         std::vector<uint32_t>
         compile(const std::string &name, const std::string &code, VkShaderStageFlagBits stage, bool optimized);

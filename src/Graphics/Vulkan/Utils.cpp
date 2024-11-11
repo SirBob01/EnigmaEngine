@@ -1795,8 +1795,10 @@ namespace Dynamo::Graphics::Vulkan {
         VkResult_check("Allocate Command Buffers", vkAllocateCommandBuffers(device, &alloc_info, dst));
     }
 
-    VkDescriptorPool
-    VkDescriptorPool_create(VkDevice device, VkDescriptorPoolSize *sizes, unsigned size_count, unsigned max_sets) {
+    VkDescriptorPool VkDescriptorPool_create(VkDevice device,
+                                             const VkDescriptorPoolSize *sizes,
+                                             unsigned size_count,
+                                             unsigned max_sets) {
         VkDescriptorPoolCreateInfo pool_info = {};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         pool_info.poolSizeCount = size_count;

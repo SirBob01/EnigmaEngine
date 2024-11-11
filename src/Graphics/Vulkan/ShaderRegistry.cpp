@@ -5,15 +5,18 @@
 
 namespace Dynamo::Graphics::Vulkan {
     constexpr char INSTANCE_VAR_PREFIX[] = "instance";
+    constexpr VkShaderStageFlags SUPPORTED_SHADER_STAGES =
+        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT |
+        VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT | VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 
     ShaderRegistry::ShaderRegistry(VkDevice device) : _device(device) {}
 
     ShaderRegistry::~ShaderRegistry() {
-        // Destroy descriptor layouts
-        for (const auto &[key, layout] : _descriptor_layouts) {
+        // Destroy descriptor set layouts
+        for (const auto &[key, layout] : _layouts) {
             vkDestroyDescriptorSetLayout(_device, layout, nullptr);
         }
-        _descriptor_layouts.clear();
+        _layouts.clear();
 
         // Destroy shader modules
         _modules.foreach ([&](ShaderModule &module) { vkDestroyShaderModule(_device, module.handle, nullptr); });
@@ -124,21 +127,21 @@ namespace Dynamo::Graphics::Vulkan {
                 return a->binding < b->binding;
             });
 
-            DescriptorSet descriptor_set;
-            DescriptorLayoutKey layout_key;
+            DescriptorSetLayout layout;
+            DescriptorSetLayoutKey key;
             for (unsigned j = 0; j < refl_set.binding_count; j++) {
                 // Update descriptor layout key
                 const SpvReflectDescriptorBinding &refl_binding = *refl_set.bindings[j];
                 VkDescriptorSetLayoutBinding layout_binding;
                 layout_binding.binding = refl_binding.binding;
                 layout_binding.pImmutableSamplers = nullptr;
-                layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(reflection.shader_stage);
+                layout_binding.stageFlags = SUPPORTED_SHADER_STAGES;
                 layout_binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
                 layout_binding.descriptorCount = 1;
                 for (unsigned k = 0; k < refl_binding.array.dims_count; k++) {
                     layout_binding.descriptorCount *= refl_binding.array.dims[k];
                 }
-                layout_key.bindings.push_back(layout_binding);
+                key.bindings.push_back(layout_binding);
 
                 // Check if uniform variable is shared
                 auto shared_it = std::find_if(shared_uniforms.begin(), shared_uniforms.end(), [&](auto &str) {
@@ -153,33 +156,31 @@ namespace Dynamo::Graphics::Vulkan {
                 descriptor_binding.binding = refl_binding.binding;
                 descriptor_binding.count = layout_binding.descriptorCount;
                 descriptor_binding.size = refl_binding.block.size;
-                descriptor_set.bindings.push_back(descriptor_binding);
+                layout.bindings.push_back(descriptor_binding);
 
-                Log::info(
-                    "* Descriptor (name: {}, set: {}, binding: {}, size: {}, dim: {}, shared: {}, type: {}, stage: {})",
-                    descriptor_binding.name,
-                    refl_binding.set,
-                    descriptor_binding.binding,
-                    descriptor_binding.size,
-                    descriptor_binding.count,
-                    descriptor_binding.shared,
-                    VkDescriptorType_string(layout_binding.descriptorType),
-                    VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(layout_binding.stageFlags)));
+                Log::info("* Descriptor (name: {}, set: {}, binding: {}, size: {}, dim: {}, shared: {}, type: {})",
+                          descriptor_binding.name,
+                          refl_binding.set,
+                          descriptor_binding.binding,
+                          descriptor_binding.size,
+                          descriptor_binding.count,
+                          descriptor_binding.shared,
+                          VkDescriptorType_string(layout_binding.descriptorType));
             }
 
-            // Build descriptor layout
-            auto layout_it = _descriptor_layouts.find(layout_key);
-            if (layout_it != _descriptor_layouts.end()) {
-                descriptor_set.layout = layout_it->second;
+            // Build descriptor set layout
+            auto layout_it = _layouts.find(key);
+            if (layout_it != _layouts.end()) {
+                layout.handle = layout_it->second;
             } else {
-                VkDescriptorSetLayoutBinding *bindings = layout_key.bindings.data();
-                unsigned binding_count = layout_key.bindings.size();
-                descriptor_set.layout = VkDescriptorSetLayout_create(_device, bindings, binding_count);
-                _descriptor_layouts.emplace(layout_key, descriptor_set.layout);
+                VkDescriptorSetLayoutBinding *bindings = key.bindings.data();
+                unsigned binding_count = key.bindings.size();
+                layout.handle = VkDescriptorSetLayout_create(_device, bindings, binding_count);
+                _layouts.emplace(key, layout.handle);
             }
 
             // Register the set
-            module.descriptor_sets.push_back(descriptor_set);
+            module.descriptor_set_layouts.push_back(layout);
         }
     }
 
@@ -202,20 +203,19 @@ namespace Dynamo::Graphics::Vulkan {
                 return str == block.name;
             });
 
-            PushConstant push_constant;
-            push_constant.name = block.name;
-            push_constant.shared = shared_it != shared_uniforms.end();
-            push_constant.range.offset = block.offset;
-            push_constant.range.size = block.size;
-            push_constant.range.stageFlags = static_cast<VkShaderStageFlagBits>(reflection.shader_stage);
+            PushConstantRange range;
+            range.name = block.name;
+            range.shared = shared_it != shared_uniforms.end();
+            range.block.offset = block.offset;
+            range.block.size = block.size;
+            range.block.stageFlags = SUPPORTED_SHADER_STAGES;
 
-            module.push_constants.push_back(push_constant);
-            Log::info("* Push Constant Range (name: {}, offset: {}, size: {}, shared: {}, stage: {})",
-                      push_constant.name,
-                      push_constant.range.offset,
-                      push_constant.range.size,
-                      push_constant.shared,
-                      VkShaderStageFlagBits_string(static_cast<VkShaderStageFlagBits>(push_constant.range.stageFlags)));
+            module.push_constant_ranges.push_back(range);
+            Log::info("* Push Constant Range (name: {}, offset: {}, size: {}, shared: {})",
+                      range.name,
+                      range.block.offset,
+                      range.block.size,
+                      range.shared);
         }
     }
 
@@ -262,8 +262,8 @@ namespace Dynamo::Graphics::Vulkan {
         // Show warning if input shared uniforms do not exist in shader
         for (const std::string &uniform_name : descriptor.shared_uniforms) {
             bool found = false;
-            for (const DescriptorSet &set : module.descriptor_sets) {
-                for (const DescriptorBinding &binding : set.bindings) {
+            for (const DescriptorSetLayout &layout : module.descriptor_set_layouts) {
+                for (const DescriptorBinding &binding : layout.bindings) {
                     if (binding.name == uniform_name) {
                         found = true;
                         break;
@@ -273,8 +273,8 @@ namespace Dynamo::Graphics::Vulkan {
             if (found) {
                 continue;
             }
-            for (const PushConstant &push_constant : module.push_constants) {
-                if (push_constant.name == uniform_name) {
+            for (const PushConstantRange &range : module.push_constant_ranges) {
+                if (range.name == uniform_name) {
                     found = true;
                     break;
                 }

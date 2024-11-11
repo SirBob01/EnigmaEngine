@@ -8,10 +8,11 @@ namespace Dynamo::Graphics {
         _context(_display),
         _swapchain(_context.device, _context.physical, _display),
         _memory(_context.device, _context.physical),
+        _descriptors(_context.device),
         _meshes(_context.device, _context.physical, _memory, _context.transfer_pool),
         _shaders(_context.device),
         _pipelines(_context.device, _context.physical, root_asset_directory + "/vulkan_cache.bin"),
-        _uniforms(_context.device, _context.physical, _memory, _context.transfer_pool),
+        _uniforms(_context.device, _context.physical, _memory, _descriptors, _context.transfer_pool),
         _textures(_context.device, _context.physical, _memory, _context.transfer_pool),
         _frame_contexts(_context.device, _context.graphics_pool),
         _forwardpass(VkRenderPass_create(_context.device,
@@ -146,22 +147,13 @@ namespace Dynamo::Graphics {
     }
 
     void Renderer::destroy_pipeline(Pipeline pipeline) {
-        // Free allocated descriptor / push constant uniforms
         PipelineInstance &instance = _pipelines.get(pipeline);
-        for (Uniform uniform : instance.uniforms) {
-            _uniforms.destroy(uniform);
-        }
+        _uniforms.destroy(instance.uniform_group);
     }
 
     std::optional<Uniform> Renderer::get_uniform(Pipeline pipeline, const std::string &name) {
         PipelineInstance &instance = _pipelines.get(pipeline);
-        for (Uniform uniform : instance.uniforms) {
-            const UniformVariable &var = _uniforms.get(uniform);
-            if (var.name == name) {
-                return uniform;
-            }
-        }
-        return {};
+        return _uniforms.find(instance.uniform_group, name);
     }
 
     void Renderer::write_uniform(Uniform uniform, void *data, unsigned index, unsigned count) {
@@ -242,6 +234,7 @@ namespace Dynamo::Graphics {
         for (Model model : _models) {
             const MeshInstance &mesh = _meshes.get(model.mesh);
             const PipelineInstance &pipeline = _pipelines.get(model.pipeline);
+            const UniformGroupInstance &uniform_group = _uniforms.get(pipeline.uniform_group);
 
             // Rebind pipeline if changed
             if (prev_pipeline != pipeline.handle) {
@@ -263,22 +256,21 @@ namespace Dynamo::Graphics {
             }
 
             // Bind descriptor sets
-            // TODO: Avoid costly descriptor set rebinding
-            if (pipeline.descriptor_sets.size()) {
+            if (uniform_group.descriptor_sets.size()) {
                 vkCmdBindDescriptorSets(frame.command_buffer,
                                         VK_PIPELINE_BIND_POINT_GRAPHICS,
                                         pipeline.layout,
                                         0,
-                                        pipeline.descriptor_sets.size(),
-                                        pipeline.descriptor_sets.data(),
+                                        uniform_group.descriptor_sets.size(),
+                                        uniform_group.descriptor_sets.data(),
                                         0,
                                         nullptr);
             }
 
             // Push constants
-            for (unsigned i = 0; i < pipeline.push_constant_ranges.size(); i++) {
-                VkPushConstantRange range = pipeline.push_constant_ranges[i];
-                unsigned offset = pipeline.push_constant_offsets[i];
+            for (unsigned i = 0; i < uniform_group.push_constant_ranges.size(); i++) {
+                VkPushConstantRange range = uniform_group.push_constant_ranges[i];
+                unsigned offset = uniform_group.push_constant_offsets[i];
                 void *data = _uniforms.get_push_constant_data(offset);
                 vkCmdPushConstants(frame.command_buffer,
                                    pipeline.layout,
