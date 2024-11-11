@@ -156,6 +156,9 @@ namespace Dynamo::Graphics::Vulkan {
             var.push_constant.size = range->block.size;
             var.push_constant.offset = allocate_push_constant_range(*range);
             group.uniforms.push_back(_uniforms.insert(var));
+
+            group.push_constant_ranges.push_back(range->block);
+            group.push_constant_offsets.push_back(var.push_constant.offset);
         }
 
         return _groups.insert(group);

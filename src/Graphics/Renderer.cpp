@@ -146,14 +146,15 @@ namespace Dynamo::Graphics {
         return _pipelines.build(descriptor, _forwardpass, _swapchain, _shaders, _uniforms, _memory);
     }
 
-    void Renderer::destroy_pipeline(Pipeline pipeline) {
-        PipelineInstance &instance = _pipelines.get(pipeline);
-        _uniforms.destroy(instance.uniform_group);
+    UniformGroup Renderer::build_uniforms(Pipeline pipeline) {
+        const PipelineInstance &instance = _pipelines.get(pipeline);
+        return _uniforms.build(instance.descriptor_set_layouts, instance.push_constant_ranges);
     }
 
-    std::optional<Uniform> Renderer::get_uniform(Pipeline pipeline, const std::string &name) {
-        PipelineInstance &instance = _pipelines.get(pipeline);
-        return _uniforms.find(instance.uniform_group, name);
+    void Renderer::destroy_uniforms(UniformGroup group) { _uniforms.destroy(group); }
+
+    std::optional<Uniform> Renderer::get_uniform(UniformGroup group, const std::string &name) {
+        return _uniforms.find(group, name);
     }
 
     void Renderer::write_uniform(Uniform uniform, void *data, unsigned index, unsigned count) {
@@ -234,7 +235,7 @@ namespace Dynamo::Graphics {
         for (Model model : _models) {
             const MeshInstance &mesh = _meshes.get(model.mesh);
             const PipelineInstance &pipeline = _pipelines.get(model.pipeline);
-            const UniformGroupInstance &uniform_group = _uniforms.get(pipeline.uniform_group);
+            const UniformGroupInstance &uniform_group = _uniforms.get(model.uniforms);
 
             // Rebind pipeline if changed
             if (prev_pipeline != pipeline.handle) {

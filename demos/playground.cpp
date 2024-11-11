@@ -152,7 +152,7 @@ layout(location = 0) out vec4 out_color;
 
 void main() {
     out_color = texture(tex_sampler[utexture.index], tex_coord);
-    // out_color *= ((sin(timer.time) + 1) * 0.5);
+    out_color *= ((sin(timer.time) + 1) * 0.5);
 }
 )";
 
@@ -242,7 +242,7 @@ int main() {
     vertex_shader_descriptor.name = "Vertex";
     vertex_shader_descriptor.code = MODEL_VERTEX_SHADER;
     vertex_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Vertex;
-    vertex_shader_descriptor.shared_uniforms.push_back("pos");
+    // vertex_shader_descriptor.shared_uniforms.push_back("timer");
     Dynamo::Graphics::Shader vertex = app.renderer().build_shader(vertex_shader_descriptor);
 
     // Build model fragment shader
@@ -250,7 +250,7 @@ int main() {
     fragment_shader_descriptor.name = "Fragment";
     fragment_shader_descriptor.code = MODEL_FRAGMENT_SHADER;
     fragment_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Fragment;
-    fragment_shader_descriptor.shared_uniforms.push_back("time");
+    // fragment_shader_descriptor.shared_uniforms.push_back("timer");
     Dynamo::Graphics::Shader fragment = app.renderer().build_shader(fragment_shader_descriptor);
 
     // Build cubemap vertex shader
@@ -268,12 +268,14 @@ int main() {
     Dynamo::Graphics::Shader skybox_fragment = app.renderer().build_shader(skybox_fragment_shader_descriptor);
 
     // Build model pipelines
-    Dynamo::Graphics::PipelineDescriptor pipeline_descriptor;
-    pipeline_descriptor.vertex = vertex;
-    pipeline_descriptor.fragment = fragment;
-    pipeline_descriptor.cull = Dynamo::Graphics::Cull::None;
-    Dynamo::Graphics::Pipeline pipeline0 = app.renderer().build_pipeline(pipeline_descriptor);
-    Dynamo::Graphics::Pipeline pipeline1 = app.renderer().build_pipeline(pipeline_descriptor);
+    Dynamo::Graphics::PipelineDescriptor model_pipeline_descriptor;
+    model_pipeline_descriptor.vertex = vertex;
+    model_pipeline_descriptor.fragment = fragment;
+    model_pipeline_descriptor.cull = Dynamo::Graphics::Cull::None;
+    Dynamo::Graphics::Pipeline model_pipeline = app.renderer().build_pipeline(model_pipeline_descriptor);
+
+    Dynamo::Graphics::UniformGroup model0_uniforms = app.renderer().build_uniforms(model_pipeline);
+    Dynamo::Graphics::UniformGroup model1_uniforms = app.renderer().build_uniforms(model_pipeline);
 
     // Build cubemap pipeline
     Dynamo::Graphics::PipelineDescriptor skybox_pipeline_descriptor;
@@ -282,22 +284,24 @@ int main() {
     skybox_pipeline_descriptor.depth_test_op = Dynamo::Graphics::CompareOp::LessEqual;
     Dynamo::Graphics::Pipeline skybox_pipeline = app.renderer().build_pipeline(skybox_pipeline_descriptor);
 
+    Dynamo::Graphics::UniformGroup skybox_uniforms = app.renderer().build_uniforms(skybox_pipeline);
+
     // Shared uniforms are constant across all pipelines, so changing either uniform will write to the same memory.
 
-    Dynamo::Graphics::Uniform transform_uniform0 = app.renderer().get_uniform(pipeline0, "transform").value();
-    Dynamo::Graphics::Uniform transform_uniform1 = app.renderer().get_uniform(pipeline1, "transform").value();
+    Dynamo::Graphics::Uniform transform_uniform0 = app.renderer().get_uniform(model0_uniforms, "transform").value();
+    Dynamo::Graphics::Uniform transform_uniform1 = app.renderer().get_uniform(model1_uniforms, "transform").value();
 
-    Dynamo::Graphics::Uniform time_uniform0 = app.renderer().get_uniform(pipeline0, "timer").value();
-    Dynamo::Graphics::Uniform time_uniform1 = app.renderer().get_uniform(pipeline1, "timer").value();
+    Dynamo::Graphics::Uniform time_uniform0 = app.renderer().get_uniform(model0_uniforms, "timer").value();
+    Dynamo::Graphics::Uniform time_uniform1 = app.renderer().get_uniform(model1_uniforms, "timer").value();
 
-    Dynamo::Graphics::Uniform sampler_uniform0 = app.renderer().get_uniform(pipeline0, "tex_sampler").value();
-    Dynamo::Graphics::Uniform sampler_uniform1 = app.renderer().get_uniform(pipeline1, "tex_sampler").value();
+    Dynamo::Graphics::Uniform sampler_uniform0 = app.renderer().get_uniform(model0_uniforms, "tex_sampler").value();
+    Dynamo::Graphics::Uniform sampler_uniform1 = app.renderer().get_uniform(model1_uniforms, "tex_sampler").value();
 
-    Dynamo::Graphics::Uniform texture_index0 = app.renderer().get_uniform(pipeline0, "utexture").value();
-    Dynamo::Graphics::Uniform texture_index1 = app.renderer().get_uniform(pipeline1, "utexture").value();
+    Dynamo::Graphics::Uniform texture_index0 = app.renderer().get_uniform(model0_uniforms, "utexture").value();
+    Dynamo::Graphics::Uniform texture_index1 = app.renderer().get_uniform(model1_uniforms, "utexture").value();
 
-    Dynamo::Graphics::Uniform skytransform_uniform = app.renderer().get_uniform(skybox_pipeline, "transform").value();
-    Dynamo::Graphics::Uniform cubemap_uniform = app.renderer().get_uniform(skybox_pipeline, "cubemap").value();
+    Dynamo::Graphics::Uniform skytransform_uniform = app.renderer().get_uniform(skybox_uniforms, "transform").value();
+    Dynamo::Graphics::Uniform cubemap_uniform = app.renderer().get_uniform(skybox_uniforms, "cubemap").value();
 
     // Build textures
     Dynamo::Graphics::TextureDescriptor viking_texture_descriptor =
@@ -340,15 +344,18 @@ int main() {
     // Build the models
     Dynamo::Graphics::Model model0;
     model0.mesh = model_mesh;
-    model0.pipeline = pipeline0;
+    model0.pipeline = model_pipeline;
+    model0.uniforms = model0_uniforms;
 
     Dynamo::Graphics::Model model1;
     model1.mesh = flat_mesh;
-    model1.pipeline = pipeline1;
+    model1.pipeline = model_pipeline;
+    model1.uniforms = model1_uniforms;
 
     Dynamo::Graphics::Model skybox;
     skybox.mesh = skybox_mesh;
     skybox.pipeline = skybox_pipeline;
+    skybox.uniforms = skybox_uniforms;
     skybox.group = 1;
 
     // Sound source
