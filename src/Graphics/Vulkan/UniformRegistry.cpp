@@ -107,27 +107,27 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    UniformGroup UniformRegistry::build(const std::vector<const DescriptorSetLayout *> &descriptor_set_layouts,
-                                        const std::vector<const PushConstantRange *> &push_constant_ranges) {
+    UniformGroup UniformRegistry::build(const std::vector<DescriptorSetLayout> &descriptor_set_layouts,
+                                        const std::vector<PushConstantRange> &push_constant_ranges) {
         UniformGroupInstance group;
-        for (const DescriptorSetLayout *layout : descriptor_set_layouts) {
-            VirtualDescriptorSet set = _descriptors.allocate_descriptor_set(layout->handle);
-            group.v_sets.push_back(set);
-            group.descriptor_sets.push_back(set.set);
+        for (const DescriptorSetLayout &layout : descriptor_set_layouts) {
+            VirtualDescriptorSet v_set = _descriptors.allocate_descriptor_set(layout.handle);
+            group.v_sets.push_back(v_set);
+            group.descriptor_sets.push_back(v_set.set);
 
-            for (const DescriptorBinding &binding : layout->bindings) {
+            for (const DescriptorBinding &binding : layout.bindings) {
                 UniformInstance var;
                 var.name = binding.name;
                 var.type = UniformType::Descriptor;
                 var.descriptor.type = binding.type;
-                var.descriptor.set = set.set;
+                var.descriptor.set = v_set.set;
                 var.descriptor.binding = binding.binding;
                 var.descriptor.size = binding.size;
                 var.descriptor.count = binding.count;
 
                 // Allocate uniform buffers
                 if (binding.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-                    var.descriptor.buffer = allocate_descriptor_binding(set.set, binding);
+                    var.descriptor.buffer = allocate_descriptor_binding(v_set.set, binding);
                     for (unsigned i = 0; i < binding.count; i++) {
                         VkDescriptorBufferInfo buffer_info;
                         buffer_info.buffer = var.descriptor.buffer.buffer;
@@ -137,7 +137,7 @@ namespace Dynamo::Graphics::Vulkan {
                         VkWriteDescriptorSet write = {};
                         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                         write.descriptorType = binding.type;
-                        write.dstSet = set.set;
+                        write.dstSet = v_set.set;
                         write.dstBinding = binding.binding;
                         write.dstArrayElement = i;
                         write.descriptorCount = 1;
@@ -149,15 +149,15 @@ namespace Dynamo::Graphics::Vulkan {
                 group.uniforms.push_back(_uniforms.insert(var));
             }
         }
-        for (const PushConstantRange *range : push_constant_ranges) {
+        for (const PushConstantRange &range : push_constant_ranges) {
             UniformInstance var;
-            var.name = range->name;
+            var.name = range.name;
             var.type = UniformType::PushConstant;
-            var.push_constant.size = range->block.size;
-            var.push_constant.offset = allocate_push_constant_range(*range);
+            var.push_constant.size = range.block.size;
+            var.push_constant.offset = allocate_push_constant_range(range);
             group.uniforms.push_back(_uniforms.insert(var));
 
-            group.push_constant_ranges.push_back(range->block);
+            group.push_constant_ranges.push_back(range.block);
             group.push_constant_offsets.push_back(var.push_constant.offset);
         }
 

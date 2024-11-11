@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include <Graphics/Shader.hpp>
 #include <Math/Color.hpp>
 
@@ -125,5 +128,11 @@ namespace Dynamo::Graphics {
          *
          */
         CompareOp depth_test_op = CompareOp::LessEqual;
+
+        /**
+         * @brief Names of uniforms that are shared across shader invocations (global variable).
+         *
+         */
+        std::vector<std::string> shared_uniforms;
     };
 } // namespace Dynamo::Graphics

@@ -93,8 +93,8 @@ namespace Dynamo::Graphics::Vulkan {
                         VkCommandPool transfer_pool);
         ~UniformRegistry();
 
-        UniformGroup build(const std::vector<const DescriptorSetLayout *> &descriptor_set_layouts,
-                           const std::vector<const PushConstantRange *> &push_constant_ranges);
+        UniformGroup build(const std::vector<DescriptorSetLayout> &descriptor_set_layouts,
+                           const std::vector<PushConstantRange> &push_constant_ranges);
 
         const UniformGroupInstance &get(UniformGroup group) const;
 

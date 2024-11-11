@@ -45,23 +45,36 @@ namespace Dynamo::Graphics::Vulkan {
         // Aggregate unique descriptor set layouts and push constant ranges
         PipelineLayoutSettings layout_settings;
         for (const ShaderModule &module : shader_modules) {
-            for (const DescriptorSetLayout &layout : module.descriptor_set_layouts) {
+            for (DescriptorSetLayout layout : module.descriptor_set_layouts) {
                 auto dup_it = std::find_if(layout_settings.descriptor_set_layouts.begin(),
                                            layout_settings.descriptor_set_layouts.end(),
-                                           [&](VkDescriptorSetLayout query) { return query == layout.handle; });
+                                           [&](auto query) { return query == layout.handle; });
                 if (dup_it == layout_settings.descriptor_set_layouts.end()) {
+                    // Mark bindings as shared
+                    for (DescriptorBinding &binding : layout.bindings) {
+                        auto shared_it = std::find_if(descriptor.shared_uniforms.begin(),
+                                                      descriptor.shared_uniforms.end(),
+                                                      [&](auto &str) { return str == binding.name; });
+                        binding.shared = shared_it != descriptor.shared_uniforms.end();
+                    }
+
                     layout_settings.descriptor_set_layouts.push_back(layout.handle);
-                    instance.descriptor_set_layouts.push_back(&layout);
+                    instance.descriptor_set_layouts.push_back(layout);
                 }
             }
-            for (const PushConstantRange &range : module.push_constant_ranges) {
-                auto dup_it =
-                    std::find_if(layout_settings.push_constant_ranges.begin(),
-                                 layout_settings.push_constant_ranges.end(),
-                                 [&](VkPushConstantRange &query) { return query.offset == range.block.offset; });
+            for (PushConstantRange range : module.push_constant_ranges) {
+                auto dup_it = std::find_if(layout_settings.push_constant_ranges.begin(),
+                                           layout_settings.push_constant_ranges.end(),
+                                           [&](auto &query) { return query.offset == range.block.offset; });
                 if (dup_it == layout_settings.push_constant_ranges.end()) {
+                    // Mark range as shared
+                    auto shared_it = std::find_if(descriptor.shared_uniforms.begin(),
+                                                  descriptor.shared_uniforms.end(),
+                                                  [&](auto &str) { return str == range.name; });
+                    range.shared = shared_it != descriptor.shared_uniforms.end();
+
                     layout_settings.push_constant_ranges.push_back(range.block);
-                    instance.push_constant_ranges.push_back(&range);
+                    instance.push_constant_ranges.push_back(range);
                 }
             }
         }
@@ -133,6 +146,8 @@ namespace Dynamo::Graphics::Vulkan {
     }
 
     PipelineInstance &PipelineRegistry::get(Pipeline pipeline) { return _instances.get(pipeline); }
+
+    void PipelineRegistry::destroy(Pipeline pipeline) { _instances.remove(pipeline); }
 
     void PipelineRegistry::write_to_disk() {
         size_t size;

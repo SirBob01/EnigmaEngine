@@ -250,7 +250,6 @@ int main() {
     fragment_shader_descriptor.name = "Fragment";
     fragment_shader_descriptor.code = MODEL_FRAGMENT_SHADER;
     fragment_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Fragment;
-    // fragment_shader_descriptor.shared_uniforms.push_back("timer");
     Dynamo::Graphics::Shader fragment = app.renderer().build_shader(fragment_shader_descriptor);
 
     // Build cubemap vertex shader
@@ -272,6 +271,7 @@ int main() {
     model_pipeline_descriptor.vertex = vertex;
     model_pipeline_descriptor.fragment = fragment;
     model_pipeline_descriptor.cull = Dynamo::Graphics::Cull::None;
+    model_pipeline_descriptor.shared_uniforms.push_back("timer");
     Dynamo::Graphics::Pipeline model_pipeline = app.renderer().build_pipeline(model_pipeline_descriptor);
 
     Dynamo::Graphics::UniformGroup model0_uniforms = app.renderer().build_uniforms(model_pipeline);

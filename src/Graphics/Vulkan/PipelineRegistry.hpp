@@ -102,8 +102,8 @@ namespace Dynamo::Graphics::Vulkan {
     struct PipelineInstance {
         VkPipelineLayout layout;
         VkPipeline handle;
-        std::vector<const DescriptorSetLayout *> descriptor_set_layouts;
-        std::vector<const PushConstantRange *> push_constant_ranges;
+        std::vector<DescriptorSetLayout> descriptor_set_layouts;
+        std::vector<PushConstantRange> push_constant_ranges;
     };
 
     class PipelineRegistry {
@@ -130,6 +130,8 @@ namespace Dynamo::Graphics::Vulkan {
                        MemoryPool &memory);
 
         PipelineInstance &get(Pipeline pipeline);
+
+        void destroy(Pipeline pipeline);
 
         void write_to_disk();
     };
