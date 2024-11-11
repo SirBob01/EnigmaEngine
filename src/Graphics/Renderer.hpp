@@ -55,9 +55,14 @@ namespace Dynamo::Graphics {
         //      - Users should have control over attachment clear values
         //      - Revamp render() workflow, need to arbitrarily begin and end renderpasses
         // * Draw-to-texture?
+        // * BufferRegistry? We will need to update all registries that work with buffers...
+        // * Allow grouping `shared_uniforms` (i.e., which UniformGroups should share which variables?)
+        //      - Holup, are these even useful now that we have UniformGroups???
         // * Customizable color blending (do we really need this?)
         // * Customizable stencil operations
-        // * Memory defragmentation stategy
+        // * Memory defragmentation stategy? We need to recreate buffers/textures and rebind them....
+        //      - Should we attach defrag listeners to the owners of allocated resources?
+        //      - Affected modules: MeshRegistry, TextureRegistry, UniformRegistry
 
         void rebuild_framebuffers();
 
