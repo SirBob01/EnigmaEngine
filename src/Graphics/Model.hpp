@@ -22,6 +22,12 @@ namespace Dynamo::Graphics {
         Pipeline pipeline;
 
         /**
+         * @brief Uniform group.
+         *
+         */
+        UniformGroup uniforms;
+
+        /**
          * @brief Group index used in sorting.
          *
          */

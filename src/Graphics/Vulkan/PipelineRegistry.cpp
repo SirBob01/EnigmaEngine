@@ -44,8 +44,6 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Aggregate unique descriptor set layouts and push constant ranges
         PipelineLayoutSettings layout_settings;
-        std::vector<const DescriptorSetLayout *> descriptor_set_layouts;
-        std::vector<const PushConstantRange *> push_constant_ranges;
         for (const ShaderModule &module : shader_modules) {
             for (const DescriptorSetLayout &layout : module.descriptor_set_layouts) {
                 auto dup_it = std::find_if(layout_settings.descriptor_set_layouts.begin(),
@@ -53,7 +51,7 @@ namespace Dynamo::Graphics::Vulkan {
                                            [&](VkDescriptorSetLayout query) { return query == layout.handle; });
                 if (dup_it == layout_settings.descriptor_set_layouts.end()) {
                     layout_settings.descriptor_set_layouts.push_back(layout.handle);
-                    descriptor_set_layouts.push_back(&layout);
+                    instance.descriptor_set_layouts.push_back(&layout);
                 }
             }
             for (const PushConstantRange &range : module.push_constant_ranges) {
@@ -63,13 +61,10 @@ namespace Dynamo::Graphics::Vulkan {
                                  [&](VkPushConstantRange &query) { return query.offset == range.block.offset; });
                 if (dup_it == layout_settings.push_constant_ranges.end()) {
                     layout_settings.push_constant_ranges.push_back(range.block);
-                    push_constant_ranges.push_back(&range);
+                    instance.push_constant_ranges.push_back(&range);
                 }
             }
         }
-
-        // Alloate the uniform group
-        instance.uniform_group = uniforms.build(descriptor_set_layouts, push_constant_ranges);
 
         // Build pipeline layout
         auto layout_it = _layouts.find(layout_settings);

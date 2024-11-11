@@ -47,6 +47,7 @@ namespace Dynamo::Graphics {
         std::vector<Model> _models;
 
         // Important TODO:
+        // * Move `shared_uniform` variables to PipelineDescriptor
         // * Proper render pass system to implement algorithms like Forward+
         //      - Allow creating render passes at the user level
         //      - Users can specify number of color attachments and types
@@ -55,11 +56,6 @@ namespace Dynamo::Graphics {
         //      - Users should have control over attachment clear values
         //      - Revamp render() workflow, need to arbitrarily begin and end renderpasses
         // * Draw-to-texture?
-        // * Decouple Uniform allocation from Pipeline?
-        //      - Pipeline creation is expensive since we need to hash the layout and pipeline descriptors
-        //      - Those are huge structs, computing them for each object created will be super slow
-        //      - Pipeline should be a Pipeline/Layout pair + metadata for uniform allocation
-        //      - Uniforms are quicker to allocate
         // * Customizable color blending (do we really need this?)
         // * Customizable stencil operations
         // * Memory defragmentation stategy
@@ -146,20 +142,27 @@ namespace Dynamo::Graphics {
         Pipeline build_pipeline(const PipelineDescriptor &descriptor);
 
         /**
-         * @brief Free pipeline instance resources.
+         * @brief Build a uniform group from a pipeline.
          *
          * @param pipeline
+         * @return UniformGroup
          */
-        void destroy_pipeline(Pipeline pipeline);
+        UniformGroup build_uniforms(Pipeline pipeline);
 
         /**
-         * @brief Get a reference to a uniform from a pipeline.
+         * @brief Destroy a uniform group.
          *
-         * @param pipeline
+         */
+        void destroy_uniforms(UniformGroup group);
+
+        /**
+         * @brief Get a reference to a uniform from a uniform group.
+         *
+         * @param group
          * @param name
          * @return std::optional<Uniform>
          */
-        std::optional<Uniform> get_uniform(Pipeline pipeline, const std::string &name);
+        std::optional<Uniform> get_uniform(UniformGroup group, const std::string &name);
 
         /**
          * @brief Write to a uniform.

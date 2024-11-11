@@ -102,7 +102,8 @@ namespace Dynamo::Graphics::Vulkan {
     struct PipelineInstance {
         VkPipelineLayout layout;
         VkPipeline handle;
-        UniformGroup uniform_group;
+        std::vector<const DescriptorSetLayout *> descriptor_set_layouts;
+        std::vector<const PushConstantRange *> push_constant_ranges;
     };
 
     class PipelineRegistry {

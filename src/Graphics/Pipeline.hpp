@@ -17,6 +17,12 @@ namespace Dynamo::Graphics {
     DYN_DEFINE_ID_TYPE(Uniform);
 
     /**
+     * @brief Uniform variable group handle.
+     *
+     */
+    DYN_DEFINE_ID_TYPE(UniformGroup);
+
+    /**
      * @brief Topology modes.
      *
      */
