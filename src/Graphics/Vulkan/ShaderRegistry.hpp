@@ -88,13 +88,9 @@ namespace Dynamo::Graphics::Vulkan {
 
         void reflect_vertex_input(ShaderModule &module, SpvReflectShaderModule reflection);
 
-        void reflect_descriptor_sets(ShaderModule &module,
-                                     SpvReflectShaderModule reflection,
-                                     const std::vector<std::string> &shared_uniforms);
+        void reflect_descriptor_sets(ShaderModule &module, SpvReflectShaderModule reflection);
 
-        void reflect_push_constants(ShaderModule &module,
-                                    SpvReflectShaderModule reflection,
-                                    const std::vector<std::string> &shared_uniforms);
+        void reflect_push_constants(ShaderModule &module, SpvReflectShaderModule reflection);
 
       public:
         ShaderRegistry(VkDevice device);

@@ -146,6 +146,8 @@ namespace Dynamo::Graphics {
         return _pipelines.build(descriptor, _forwardpass, _swapchain, _shaders, _uniforms, _memory);
     }
 
+    void Renderer::destroy_pipeline(Pipeline pipeline) { _pipelines.destroy(pipeline); }
+
     UniformGroup Renderer::build_uniforms(Pipeline pipeline) {
         const PipelineInstance &instance = _pipelines.get(pipeline);
         return _uniforms.build(instance.descriptor_set_layouts, instance.push_constant_ranges);

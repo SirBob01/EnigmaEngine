@@ -47,7 +47,6 @@ namespace Dynamo::Graphics {
         std::vector<Model> _models;
 
         // Important TODO:
-        // * Move `shared_uniform` variables to PipelineDescriptor
         // * Proper render pass system to implement algorithms like Forward+
         //      - Allow creating render passes at the user level
         //      - Users can specify number of color attachments and types
@@ -140,6 +139,13 @@ namespace Dynamo::Graphics {
          * @return Pipeline
          */
         Pipeline build_pipeline(const PipelineDescriptor &descriptor);
+
+        /**
+         * @brief Destroy a graphics pipeline.
+         *
+         * @param pipeline
+         */
+        void destroy_pipeline(Pipeline pipeline);
 
         /**
          * @brief Build a uniform group from a pipeline.
