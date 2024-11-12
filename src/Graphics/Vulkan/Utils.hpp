@@ -112,11 +112,13 @@ namespace Dynamo::Graphics::Vulkan {
 
     VkShaderModule VkShaderModule_create(VkDevice device, const std::vector<uint32_t> &bytecode);
 
-    // Very simple forward render pass configuration
     VkRenderPass VkRenderPass_create(VkDevice device,
-                                     VkSampleCountFlagBits samples,
-                                     VkFormat color_format,
-                                     VkFormat depth_stencil_format);
+                                     VkAttachmentDescription *attachments,
+                                     unsigned attachment_count,
+                                     VkSubpassDescription *subpasses,
+                                     unsigned subpass_count,
+                                     VkSubpassDependency *dependencies,
+                                     unsigned dependency_count);
 
     VkPipelineCache VkPipelineCache_create(VkDevice device, const std::string &filename);
 

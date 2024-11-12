@@ -1503,10 +1503,10 @@ namespace Dynamo::Graphics::Vulkan {
         return shader;
     }
 
-    VkRenderPass VkRenderPass_create(VkDevice device,
-                                     VkSampleCountFlagBits samples,
-                                     VkFormat color_format,
-                                     VkFormat depth_stencil_format) {
+    VkRenderPass VkRenderPass_forward_create(VkDevice device,
+                                             VkSampleCountFlagBits samples,
+                                             VkFormat color_format,
+                                             VkFormat depth_stencil_format) {
         VkAttachmentDescription color = {};
         color.format = color_format;
         color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -1586,6 +1586,28 @@ namespace Dynamo::Graphics::Vulkan {
         renderpass_info.pSubpasses = &subpass;
         renderpass_info.dependencyCount = 1;
         renderpass_info.pDependencies = &dependency;
+
+        VkRenderPass renderpass;
+        VkResult result = vkCreateRenderPass(device, &renderpass_info, nullptr, &renderpass);
+        VkResult_check("Create Render Pass", result);
+        return renderpass;
+    }
+
+    VkRenderPass VkRenderPass_create(VkDevice device,
+                                     VkAttachmentDescription *attachments,
+                                     unsigned attachment_count,
+                                     VkSubpassDescription *subpasses,
+                                     unsigned subpass_count,
+                                     VkSubpassDependency *dependencies,
+                                     unsigned dependency_count) {
+        VkRenderPassCreateInfo renderpass_info = {};
+        renderpass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderpass_info.pAttachments = attachments;
+        renderpass_info.attachmentCount = attachment_count;
+        renderpass_info.subpassCount = subpass_count;
+        renderpass_info.pSubpasses = subpasses;
+        renderpass_info.pDependencies = dependencies;
+        renderpass_info.dependencyCount = dependency_count;
 
         VkRenderPass renderpass;
         VkResult result = vkCreateRenderPass(device, &renderpass_info, nullptr, &renderpass);
