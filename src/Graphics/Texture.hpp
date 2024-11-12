@@ -58,6 +58,20 @@ namespace Dynamo::Graphics {
     };
 
     /**
+     * @brief Texture samples.
+     *
+     */
+    enum class TextureSamples {
+        S1,
+        S2,
+        S4,
+        S8,
+        S16,
+        S32,
+        S64,
+    };
+
+    /**
      * @brief Texture descriptor.
      *
      */
@@ -149,5 +163,13 @@ namespace Dynamo::Graphics {
          *
          */
         TextureAddressMode w_address_mode = TextureAddressMode::Repeat;
+
+        /**
+         * @brief Desired sample count.
+         *
+         * The actual sample count will be clamped depending on device availability.
+         *
+         */
+        TextureSamples samples = TextureSamples::S1;
     };
 } // namespace Dynamo::Graphics

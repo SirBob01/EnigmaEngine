@@ -47,6 +47,8 @@ namespace Dynamo::Graphics::Vulkan {
 
     VkSamplerAddressMode convert_texture_address_mode(TextureAddressMode address_mode);
 
+    VkSampleCountFlagBits convert_texture_samples(TextureSamples samples);
+
     VkInstance VkInstance_create(const Display &display);
 
     VkDebugUtilsMessengerEXT VkDebugUtilsMessengerEXT_create(VkInstance instance);

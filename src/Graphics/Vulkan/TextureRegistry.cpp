@@ -124,44 +124,34 @@ namespace Dynamo::Graphics::Vulkan {
         extent.depth = descriptor.depth;
 
         VkImageSubresourceRange subresources;
-        subresources.baseMipLevel = 0;
+        subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         subresources.baseArrayLayer = 0;
+        subresources.layerCount = 1;
+        subresources.baseMipLevel = 0;
         subresources.levelCount = descriptor.mip_levels;
 
         VkImageType type = descriptor.depth == 1 ? VK_IMAGE_TYPE_2D : VK_IMAGE_TYPE_3D;
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
         VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        VkFormat format;
-        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+        VkFormat format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
+        VkSampleCountFlagBits samples = std::min(convert_texture_samples(descriptor.samples), _physical.samples);
         VkImageCreateFlags flags = 0;
 
         // Handle different usage cases
         switch (descriptor.usage) {
         case TextureUsage::Static:
-            subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            subresources.layerCount = 1;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
             break;
         case TextureUsage::Cubemap:
-            subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             subresources.layerCount = 6;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
             flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
             break;
         case TextureUsage::ColorTarget:
             usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-            subresources.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            subresources.layerCount = 1;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
-            samples = _physical.samples;
             break;
         case TextureUsage::DepthStencilTarget:
             usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
             subresources.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            subresources.layerCount = 1;
-            format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
-            samples = _physical.samples;
             break;
         }
 

@@ -1166,6 +1166,25 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
+    VkSampleCountFlagBits convert_texture_samples(TextureSamples samples) {
+        switch (samples) {
+        case TextureSamples::S1:
+            return VK_SAMPLE_COUNT_1_BIT;
+        case TextureSamples::S2:
+            return VK_SAMPLE_COUNT_2_BIT;
+        case TextureSamples::S4:
+            return VK_SAMPLE_COUNT_4_BIT;
+        case TextureSamples::S8:
+            return VK_SAMPLE_COUNT_8_BIT;
+        case TextureSamples::S16:
+            return VK_SAMPLE_COUNT_16_BIT;
+        case TextureSamples::S32:
+            return VK_SAMPLE_COUNT_32_BIT;
+        case TextureSamples::S64:
+            return VK_SAMPLE_COUNT_64_BIT;
+        }
+    }
+
     VkInstance VkInstance_create(const Display &display) {
         std::vector<const char *> extensions = display.get_vulkan_extensions();
 
