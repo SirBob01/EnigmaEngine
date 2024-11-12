@@ -71,6 +71,16 @@ namespace Dynamo::Graphics {
     };
 
     /**
+     * @brief Render pass.
+     *
+     */
+    enum class RenderPass {
+        Forward,
+        TextureTarget,
+        Overlay,
+    };
+
+    /**
      * @brief Pipeline descriptor.
      *
      */

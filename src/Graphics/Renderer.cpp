@@ -11,14 +11,11 @@ namespace Dynamo::Graphics {
         _descriptors(_context.device),
         _meshes(_context.device, _context.physical, _memory, _context.transfer_pool),
         _shaders(_context.device),
+        _renderpasses(_context.device, _context.physical, _swapchain),
         _pipelines(_context.device, _context.physical, root_asset_directory + "/vulkan_cache.bin"),
         _uniforms(_context.device, _context.physical, _memory, _descriptors, _context.transfer_pool),
         _textures(_context.device, _context.physical, _memory, _context.transfer_pool),
-        _frame_contexts(_context.device, _context.graphics_pool),
-        _forwardpass(VkRenderPass_create(_context.device,
-                                         _context.physical.samples,
-                                         _swapchain.surface_format.format,
-                                         _context.physical.depth_format)) {
+        _frame_contexts(_context.device, _context.graphics_pool) {
         // Setup the color buffer
         TextureDescriptor color_descriptor;
         color_descriptor.width = _swapchain.extent.width;
@@ -58,12 +55,11 @@ namespace Dynamo::Graphics {
         // Cache built pipelines
         _pipelines.write_to_disk();
 
-        // Destroy resources
+        // Destroy swapchain and framebuffers
         _swapchain.destroy();
         for (VkFramebuffer framebuffer : _framebuffers) {
             vkDestroyFramebuffer(_context.device, framebuffer, nullptr);
         }
-        vkDestroyRenderPass(_context.device, _forwardpass, nullptr);
     }
 
     void Renderer::rebuild_framebuffers() {
@@ -84,7 +80,7 @@ namespace Dynamo::Graphics {
                 views[count++] = _textures.get(_depth_stencil_texture).view;
             }
             _framebuffers.push_back(VkFramebuffer_create(_context.device,
-                                                         _forwardpass,
+                                                         _renderpasses.forward.handle,
                                                          _swapchain.extent,
                                                          views.begin(),
                                                          count,
@@ -147,7 +143,7 @@ namespace Dynamo::Graphics {
     void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture); }
 
     Pipeline Renderer::build_pipeline(const PipelineDescriptor &descriptor) {
-        return _pipelines.build(descriptor, _forwardpass, _swapchain, _shaders, _uniforms, _memory);
+        return _pipelines.build(descriptor, _renderpasses.forward.handle, _swapchain, _shaders, _uniforms, _memory);
     }
 
     void Renderer::destroy_pipeline(Pipeline pipeline) { _pipelines.destroy(pipeline); }
@@ -226,7 +222,7 @@ namespace Dynamo::Graphics {
 
         VkRenderPassBeginInfo renderpass_begin_info = {};
         renderpass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderpass_begin_info.renderPass = _forwardpass;
+        renderpass_begin_info.renderPass = _renderpasses.forward.handle;
         renderpass_begin_info.renderArea.extent = _swapchain.extent;
         renderpass_begin_info.renderArea.offset.x = 0;
         renderpass_begin_info.renderArea.offset.y = 0;

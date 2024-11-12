@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Graphics/Vulkan/RenderPassRegistry.hpp"
 #include <vulkan/vulkan_core.h>
 
 #include <Display.hpp>
@@ -32,6 +33,7 @@ namespace Dynamo::Graphics {
         Vulkan::DescriptorPool _descriptors;
         Vulkan::MeshRegistry _meshes;
         Vulkan::ShaderRegistry _shaders;
+        Vulkan::RenderPassRegistry _renderpasses;
         Vulkan::PipelineRegistry _pipelines;
         Vulkan::UniformRegistry _uniforms;
         Vulkan::TextureRegistry _textures;
@@ -40,21 +42,16 @@ namespace Dynamo::Graphics {
         Texture _color_texture;
         Texture _depth_stencil_texture;
 
-        VkRenderPass _forwardpass;
         std::vector<VkFramebuffer> _framebuffers;
         std::array<VkClearValue, 2> _clear;
 
         std::vector<Model> _models;
 
         // Important TODO:
-        // * Proper render pass system to implement algorithms like Forward+
-        //      - Allow creating render passes at the user level
-        //      - Users can specify number of color attachments and types
-        //      - Users should have control over the render target area
-        //      - Users should have control over which textures to use as attachments
-        //      - Users should have control over attachment clear values
-        //      - Revamp render() workflow, need to arbitrarily begin and end renderpasses
-        // * Draw-to-texture?
+        // * Implement RenderPassRegistry that holds the main renderpasses
+        //      - Forward (Scene)
+        //      - Target (draw-to-texture)?
+        //      - Overlay
         // * BufferRegistry? We will need to update all registries that work with buffers...
         // * Allow grouping `shared_uniforms` (i.e., which UniformGroups should share which variables?)
         //      - Holup, are these even useful now that we have UniformGroups???
