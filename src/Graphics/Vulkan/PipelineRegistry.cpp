@@ -28,7 +28,8 @@ namespace Dynamo::Graphics::Vulkan {
     }
 
     Pipeline PipelineRegistry::build(const PipelineDescriptor &descriptor,
-                                     VkRenderPass renderpass,
+                                     VkRenderPass depth_pass,
+                                     VkRenderPass shading_pass,
                                      const Swapchain &swapchain,
                                      const ShaderRegistry &shaders,
                                      UniformRegistry &uniforms,
@@ -117,29 +118,59 @@ namespace Dynamo::Graphics::Vulkan {
         pipeline_settings.depth_test = descriptor.depth_test;
         pipeline_settings.depth_write = descriptor.depth_write;
         pipeline_settings.depth_test_op = convert_compare_op(descriptor.depth_test_op);
+
+        // Depth pass pipeline
+        pipeline_settings.renderpass = depth_pass;
         auto pipeline_it = _pipelines.find(pipeline_settings);
         if (pipeline_it != _pipelines.end()) {
-            instance.handle = pipeline_it->second;
+            instance.depth_pass_pipeline = pipeline_it->second;
         } else {
-            instance.handle = VkPipeline_create(_device,
-                                                _pipeline_cache,
-                                                pipeline_settings.layout,
-                                                renderpass,
-                                                pipeline_settings.vertex,
-                                                pipeline_settings.fragment,
-                                                pipeline_settings.topology,
-                                                pipeline_settings.fill,
-                                                pipeline_settings.cull,
-                                                pipeline_settings.samples,
-                                                pipeline_settings.color_mask,
-                                                pipeline_settings.depth_test,
-                                                pipeline_settings.depth_write,
-                                                pipeline_settings.depth_test_op,
-                                                vertex_module.bindings.data(),
-                                                vertex_module.bindings.size(),
-                                                vertex_module.attributes.data(),
-                                                vertex_module.attributes.size());
-            _pipelines.emplace(pipeline_settings, instance.handle);
+            instance.depth_pass_pipeline = VkPipeline_create(_device,
+                                                             _pipeline_cache,
+                                                             pipeline_settings.layout,
+                                                             pipeline_settings.renderpass,
+                                                             pipeline_settings.vertex,
+                                                             VK_NULL_HANDLE,
+                                                             pipeline_settings.topology,
+                                                             pipeline_settings.fill,
+                                                             pipeline_settings.cull,
+                                                             pipeline_settings.samples,
+                                                             pipeline_settings.color_mask,
+                                                             pipeline_settings.depth_test,
+                                                             pipeline_settings.depth_write,
+                                                             pipeline_settings.depth_test_op,
+                                                             vertex_module.bindings.data(),
+                                                             vertex_module.bindings.size(),
+                                                             vertex_module.attributes.data(),
+                                                             vertex_module.attributes.size());
+            _pipelines.emplace(pipeline_settings, instance.depth_pass_pipeline);
+        }
+
+        // Shading pass pipeline
+        pipeline_settings.renderpass = shading_pass;
+        pipeline_it = _pipelines.find(pipeline_settings);
+        if (pipeline_it != _pipelines.end()) {
+            instance.shading_pass_pipeline = pipeline_it->second;
+        } else {
+            instance.shading_pass_pipeline = VkPipeline_create(_device,
+                                                               _pipeline_cache,
+                                                               pipeline_settings.layout,
+                                                               pipeline_settings.renderpass,
+                                                               pipeline_settings.vertex,
+                                                               pipeline_settings.fragment,
+                                                               pipeline_settings.topology,
+                                                               pipeline_settings.fill,
+                                                               pipeline_settings.cull,
+                                                               pipeline_settings.samples,
+                                                               pipeline_settings.color_mask,
+                                                               pipeline_settings.depth_test,
+                                                               false,
+                                                               VK_COMPARE_OP_EQUAL,
+                                                               vertex_module.bindings.data(),
+                                                               vertex_module.bindings.size(),
+                                                               vertex_module.attributes.data(),
+                                                               vertex_module.attributes.size());
+            _pipelines.emplace(pipeline_settings, instance.shading_pass_pipeline);
         }
 
         return _instances.insert(instance);

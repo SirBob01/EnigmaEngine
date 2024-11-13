@@ -17,11 +17,14 @@ namespace Dynamo::Graphics::Vulkan {
         VkFormat _swapchain_color_format;
         VkFormat _swapchain_depth_format;
 
+        RenderPassInstance build_depth_pass(VkSampleCountFlagBits samples, VkFormat depth_stencil_format);
+
         RenderPassInstance
         build_forward_pass(VkSampleCountFlagBits samples, VkFormat color_format, VkFormat depth_stencil_format);
 
       public:
-        const RenderPassInstance forward;
+        const RenderPassInstance depth;
+        const RenderPassInstance shading;
 
         RenderPassRegistry(VkDevice device, const PhysicalDevice &physical, const Swapchain &swapchain);
         ~RenderPassRegistry();

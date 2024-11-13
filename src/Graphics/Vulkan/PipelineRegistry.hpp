@@ -63,6 +63,7 @@ namespace Dynamo::Graphics::Vulkan {
         VkPipelineLayout layout;
         VkShaderModule vertex;
         VkShaderModule fragment;
+        VkRenderPass renderpass;
         VkPrimitiveTopology topology;
         VkPolygonMode fill;
         VkCullModeFlags cull;
@@ -74,9 +75,10 @@ namespace Dynamo::Graphics::Vulkan {
 
         inline bool operator==(const GraphicsPipelineSettings &other) const {
             return layout == other.layout && vertex == other.vertex && fragment == other.fragment &&
-                   topology == other.topology && fill == other.fill && cull == other.cull && samples == other.samples &&
-                   color_mask == other.color_mask && depth_test == other.depth_test &&
-                   depth_write == other.depth_write && depth_test_op == other.depth_test_op;
+                   renderpass == other.renderpass && topology == other.topology && fill == other.fill &&
+                   cull == other.cull && samples == other.samples && color_mask == other.color_mask &&
+                   depth_test == other.depth_test && depth_write == other.depth_write &&
+                   depth_test_op == other.depth_test_op;
         }
 
         struct Hash {
@@ -84,24 +86,26 @@ namespace Dynamo::Graphics::Vulkan {
                 size_t hash0 = std::hash<VkPipelineLayout>{}(settings.layout);
                 size_t hash1 = std::hash<VkShaderModule>{}(settings.vertex);
                 size_t hash2 = std::hash<VkShaderModule>{}(settings.fragment);
-                size_t hash3 = std::hash<VkPrimitiveTopology>{}(settings.topology);
-                size_t hash4 = std::hash<VkPolygonMode>{}(settings.fill);
-                size_t hash5 = std::hash<VkCullModeFlags>{}(settings.cull);
-                size_t hash6 = std::hash<VkSampleCountFlagBits>{}(settings.samples);
-                size_t hash7 = std::hash<VkColorComponentFlags>{}(settings.color_mask);
-                size_t hash8 = std::hash<bool>{}(settings.depth_test);
-                size_t hash9 = std::hash<bool>{}(settings.depth_write);
-                size_t hash10 = std::hash<VkCompareOp>{}(settings.depth_test_op);
+                size_t hash3 = std::hash<VkRenderPass>{}(settings.renderpass);
+                size_t hash4 = std::hash<VkPrimitiveTopology>{}(settings.topology);
+                size_t hash5 = std::hash<VkPolygonMode>{}(settings.fill);
+                size_t hash6 = std::hash<VkCullModeFlags>{}(settings.cull);
+                size_t hash7 = std::hash<VkSampleCountFlagBits>{}(settings.samples);
+                size_t hash8 = std::hash<VkColorComponentFlags>{}(settings.color_mask);
+                size_t hash9 = std::hash<bool>{}(settings.depth_test);
+                size_t hash10 = std::hash<bool>{}(settings.depth_write);
+                size_t hash11 = std::hash<VkCompareOp>{}(settings.depth_test_op);
 
                 return hash0 ^ (hash1 << 1) ^ (hash2 << 2) ^ (hash3 << 3) ^ (hash4 << 4) ^ (hash5 << 5) ^ (hash6 << 6) ^
-                       (hash7 << 7) ^ (hash8 << 8) ^ (hash9 << 9) ^ (hash10 << 10);
+                       (hash7 << 7) ^ (hash8 << 8) ^ (hash9 << 9) ^ (hash10 << 10) ^ (hash11 << 11);
             }
         };
     };
 
     struct PipelineInstance {
         VkPipelineLayout layout;
-        VkPipeline handle;
+        VkPipeline depth_pass_pipeline;
+        VkPipeline shading_pass_pipeline;
         std::vector<DescriptorSetLayout> descriptor_set_layouts;
         std::vector<PushConstantRange> push_constant_ranges;
     };
@@ -123,7 +127,8 @@ namespace Dynamo::Graphics::Vulkan {
         ~PipelineRegistry();
 
         Pipeline build(const PipelineDescriptor &descriptor,
-                       VkRenderPass renderpass,
+                       VkRenderPass depth_pass,
+                       VkRenderPass shading_pass,
                        const Swapchain &swapchain,
                        const ShaderRegistry &shaders,
                        UniformRegistry &uniforms,

@@ -1580,21 +1580,23 @@ namespace Dynamo::Graphics::Vulkan {
         pipeline_info.pDynamicState = &dynamic;
 
         // Programmable shader stages
-        std::array<VkPipelineShaderStageCreateInfo, 2> stages;
-
-        VkPipelineShaderStageCreateInfo vertex_stage_info = {};
-        vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-        vertex_stage_info.module = vertex;
-        vertex_stage_info.pName = "main";
-        stages[0] = vertex_stage_info;
-
-        VkPipelineShaderStageCreateInfo fragment_stage_info = {};
-        fragment_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        fragment_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        fragment_stage_info.module = fragment;
-        fragment_stage_info.pName = "main";
-        stages[1] = fragment_stage_info;
+        std::vector<VkPipelineShaderStageCreateInfo> stages;
+        if (vertex != VK_NULL_HANDLE) {
+            VkPipelineShaderStageCreateInfo vertex_stage_info = {};
+            vertex_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            vertex_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+            vertex_stage_info.module = vertex;
+            vertex_stage_info.pName = "main";
+            stages.push_back(vertex_stage_info);
+        }
+        if (fragment != VK_NULL_HANDLE) {
+            VkPipelineShaderStageCreateInfo fragment_stage_info = {};
+            fragment_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            fragment_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+            fragment_stage_info.module = fragment;
+            fragment_stage_info.pName = "main";
+            stages.push_back(fragment_stage_info);
+        }
 
         pipeline_info.stageCount = stages.size();
         pipeline_info.pStages = stages.data();
@@ -1666,7 +1668,9 @@ namespace Dynamo::Graphics::Vulkan {
         blend.pAttachments = &blend_attachment;
         blend.logicOpEnable = VK_FALSE;
         blend.logicOp = VK_LOGIC_OP_COPY;
-        pipeline_info.pColorBlendState = &blend;
+        if (fragment != VK_NULL_HANDLE) {
+            pipeline_info.pColorBlendState = &blend;
+        }
 
         // Depth and stencil testing
         VkPipelineDepthStencilStateCreateInfo depth_stencil = {};

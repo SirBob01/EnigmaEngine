@@ -42,7 +42,8 @@ namespace Dynamo::Graphics {
         Texture _color_texture;
         Texture _depth_stencil_texture;
 
-        std::vector<VkFramebuffer> _framebuffers;
+        VkFramebuffer _depth_framebuffer;
+        std::vector<VkFramebuffer> _shading_framebuffers;
         std::array<VkClearValue, 2> _clear;
 
         std::vector<Model> _models;

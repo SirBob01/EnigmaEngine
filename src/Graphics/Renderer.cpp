@@ -15,7 +15,8 @@ namespace Dynamo::Graphics {
         _pipelines(_context.device, _context.physical, root_asset_directory + "/vulkan_cache.bin"),
         _uniforms(_context.device, _context.physical, _memory, _descriptors, _context.transfer_pool),
         _textures(_context.device, _context.physical, _memory, _context.transfer_pool),
-        _frame_contexts(_context.device, _context.graphics_pool) {
+        _frame_contexts(_context.device, _context.graphics_pool),
+        _depth_framebuffer(VK_NULL_HANDLE) {
         // Setup the color buffer
         TextureDescriptor color_descriptor;
         color_descriptor.width = _swapchain.extent.width;
@@ -57,34 +58,50 @@ namespace Dynamo::Graphics {
 
         // Destroy swapchain and framebuffers
         _swapchain.destroy();
-        for (VkFramebuffer framebuffer : _framebuffers) {
+        vkDestroyFramebuffer(_context.device, _depth_framebuffer, nullptr);
+        for (VkFramebuffer framebuffer : _shading_framebuffers) {
             vkDestroyFramebuffer(_context.device, framebuffer, nullptr);
         }
     }
 
     void Renderer::rebuild_framebuffers() {
-        for (VkFramebuffer framebuffer : _framebuffers) {
+        if (_depth_framebuffer != VK_NULL_HANDLE) {
+            vkDestroyFramebuffer(_context.device, _depth_framebuffer, nullptr);
+        }
+        for (VkFramebuffer framebuffer : _shading_framebuffers) {
             vkDestroyFramebuffer(_context.device, framebuffer, nullptr);
         }
-        _framebuffers.clear();
+        _shading_framebuffers.clear();
 
+        VkImageView color_view = _textures.get(_color_texture).view;
+        VkImageView depth_stencil_view = _textures.get(_depth_stencil_texture).view;
+
+        // Build depth framebuffer
+        _depth_framebuffer = VkFramebuffer_create(_context.device,
+                                                  _renderpasses.depth.handle,
+                                                  _swapchain.extent,
+                                                  &depth_stencil_view,
+                                                  1,
+                                                  _swapchain.array_layers);
+
+        // Build shading framebuffers
         for (VkImageView view : _swapchain.views) {
             std::array<VkImageView, 3> views;
             unsigned count = 0;
             if (_context.physical.samples != VK_SAMPLE_COUNT_1_BIT) {
-                views[count++] = _textures.get(_color_texture).view;
-                views[count++] = _textures.get(_depth_stencil_texture).view;
+                views[count++] = color_view;
+                views[count++] = depth_stencil_view;
                 views[count++] = view;
             } else {
                 views[count++] = view;
-                views[count++] = _textures.get(_depth_stencil_texture).view;
+                views[count++] = depth_stencil_view;
             }
-            _framebuffers.push_back(VkFramebuffer_create(_context.device,
-                                                         _renderpasses.forward.handle,
-                                                         _swapchain.extent,
-                                                         views.begin(),
-                                                         count,
-                                                         _swapchain.array_layers));
+            _shading_framebuffers.push_back(VkFramebuffer_create(_context.device,
+                                                                 _renderpasses.shading.handle,
+                                                                 _swapchain.extent,
+                                                                 views.begin(),
+                                                                 count,
+                                                                 _swapchain.array_layers));
         }
     }
 
@@ -143,7 +160,13 @@ namespace Dynamo::Graphics {
     void Renderer::destroy_texture(Texture texture) { _textures.destroy(texture); }
 
     Pipeline Renderer::build_pipeline(const PipelineDescriptor &descriptor) {
-        return _pipelines.build(descriptor, _renderpasses.forward.handle, _swapchain, _shaders, _uniforms, _memory);
+        return _pipelines.build(descriptor,
+                                _renderpasses.depth.handle,
+                                _renderpasses.shading.handle,
+                                _swapchain,
+                                _shaders,
+                                _uniforms,
+                                _memory);
     }
 
     void Renderer::destroy_pipeline(Pipeline pipeline) { _pipelines.destroy(pipeline); }
@@ -220,16 +243,16 @@ namespace Dynamo::Graphics {
         scissor.offset.y = 0;
         vkCmdSetScissor(frame.command_buffer, 0, 1, &scissor);
 
-        VkRenderPassBeginInfo renderpass_begin_info = {};
-        renderpass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderpass_begin_info.renderPass = _renderpasses.forward.handle;
-        renderpass_begin_info.renderArea.extent = _swapchain.extent;
-        renderpass_begin_info.renderArea.offset.x = 0;
-        renderpass_begin_info.renderArea.offset.y = 0;
-        renderpass_begin_info.clearValueCount = _clear.size();
-        renderpass_begin_info.pClearValues = _clear.data();
-        renderpass_begin_info.framebuffer = _framebuffers[image_index];
-        vkCmdBeginRenderPass(frame.command_buffer, &renderpass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+        VkRenderPassBeginInfo depth_pass_begin_info = {};
+        depth_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        depth_pass_begin_info.renderPass = _renderpasses.depth.handle;
+        depth_pass_begin_info.renderArea.extent = _swapchain.extent;
+        depth_pass_begin_info.renderArea.offset.x = 0;
+        depth_pass_begin_info.renderArea.offset.y = 0;
+        depth_pass_begin_info.clearValueCount = 1;
+        depth_pass_begin_info.pClearValues = &_clear[1];
+        depth_pass_begin_info.framebuffer = _depth_framebuffer;
+        vkCmdBeginRenderPass(frame.command_buffer, &depth_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
         VkPipeline prev_pipeline = VK_NULL_HANDLE;
         Mesh prev_mesh = reinterpret_cast<Mesh>(-1);
@@ -240,9 +263,9 @@ namespace Dynamo::Graphics {
             const UniformGroupInstance &uniform_group = _uniforms.get(model.uniforms);
 
             // Rebind pipeline if changed
-            if (prev_pipeline != pipeline.handle) {
-                prev_pipeline = pipeline.handle;
-                vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.handle);
+            if (prev_pipeline != pipeline.depth_pass_pipeline) {
+                prev_pipeline = pipeline.depth_pass_pipeline;
+                vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.depth_pass_pipeline);
             }
 
             // Rebind mesh if changed
@@ -290,11 +313,84 @@ namespace Dynamo::Graphics {
                 vkCmdDraw(frame.command_buffer, mesh.vertex_count, mesh.instance_count, 0, 0);
             }
         }
-        _models.clear();
-
-        // End renderpass
         vkCmdEndRenderPass(frame.command_buffer);
+
+        VkRenderPassBeginInfo shading_pass_begin_info = {};
+        shading_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        shading_pass_begin_info.renderPass = _renderpasses.shading.handle;
+        shading_pass_begin_info.renderArea.extent = _swapchain.extent;
+        shading_pass_begin_info.renderArea.offset.x = 0;
+        shading_pass_begin_info.renderArea.offset.y = 0;
+        shading_pass_begin_info.clearValueCount = _clear.size();
+        shading_pass_begin_info.pClearValues = _clear.data();
+        shading_pass_begin_info.framebuffer = _shading_framebuffers[image_index];
+        vkCmdBeginRenderPass(frame.command_buffer, &shading_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+        prev_pipeline = VK_NULL_HANDLE;
+        prev_mesh = reinterpret_cast<Mesh>(-1);
+
+        for (Model model : _models) {
+            const MeshInstance &mesh = _meshes.get(model.mesh);
+            const PipelineInstance &pipeline = _pipelines.get(model.pipeline);
+            const UniformGroupInstance &uniform_group = _uniforms.get(model.uniforms);
+
+            // Rebind pipeline if changed
+            if (prev_pipeline != pipeline.shading_pass_pipeline) {
+                prev_pipeline = pipeline.shading_pass_pipeline;
+                vkCmdBindPipeline(frame.command_buffer,
+                                  VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                  pipeline.shading_pass_pipeline);
+            }
+
+            // Rebind mesh if changed
+            if (prev_mesh != model.mesh) {
+                prev_mesh = model.mesh;
+                vkCmdBindVertexBuffers(frame.command_buffer,
+                                       0,
+                                       mesh.attribute_offsets.size(),
+                                       mesh.buffers.data(),
+                                       mesh.attribute_offsets.data());
+                if (mesh.index_type != VK_INDEX_TYPE_NONE_KHR) {
+                    vkCmdBindIndexBuffer(frame.command_buffer, mesh.index_buffer, mesh.index_offset, mesh.index_type);
+                }
+            }
+
+            // Bind descriptor sets
+            if (uniform_group.descriptor_sets.size()) {
+                vkCmdBindDescriptorSets(frame.command_buffer,
+                                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                        pipeline.layout,
+                                        0,
+                                        uniform_group.descriptor_sets.size(),
+                                        uniform_group.descriptor_sets.data(),
+                                        0,
+                                        nullptr);
+            }
+
+            // Push constants
+            for (unsigned i = 0; i < uniform_group.push_constant_ranges.size(); i++) {
+                VkPushConstantRange range = uniform_group.push_constant_ranges[i];
+                unsigned offset = uniform_group.push_constant_offsets[i];
+                void *data = _uniforms.get_push_constant_data(offset);
+                vkCmdPushConstants(frame.command_buffer,
+                                   pipeline.layout,
+                                   range.stageFlags,
+                                   range.offset,
+                                   range.size,
+                                   data);
+            }
+
+            // Draw
+            if (mesh.index_type != VK_INDEX_TYPE_NONE_KHR) {
+                vkCmdDrawIndexed(frame.command_buffer, mesh.index_count, mesh.instance_count, 0, 0, 0);
+            } else {
+                vkCmdDraw(frame.command_buffer, mesh.vertex_count, mesh.instance_count, 0, 0);
+            }
+        }
+        vkCmdEndRenderPass(frame.command_buffer);
+
         VkResult_check("End Command Buffer", vkEndCommandBuffer(frame.command_buffer));
+        _models.clear();
 
         // Submit commands
         VkQueue queue;
