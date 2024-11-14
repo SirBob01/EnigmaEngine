@@ -9,10 +9,9 @@ namespace Dynamo::Asset {
      * @brief Load a 2D texture from an image file.
      *
      * @param filepath
-     * @param mip_levels
      * @return Graphics::TextureDescriptor
      */
-    Graphics::TextureDescriptor load_texture(const std::string filepath, unsigned mip_levels = 1);
+    Graphics::TextureDescriptor load_texture(const std::string filepath);
 
     /**
      * @brief Load a cubemap texture from image face files.

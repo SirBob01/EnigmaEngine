@@ -44,7 +44,9 @@ namespace Dynamo::Graphics {
          * @param index_type
          */
         MeshDescriptor(unsigned vertex_count, IndexType index_type) :
-            vertex_count(vertex_count), instance_count(1), index_type(index_type) {}
+            vertex_count(vertex_count),
+            instance_count(1),
+            index_type(index_type) {}
 
         /**
          * @brief Construct an instanced Mesh Descriptor.
@@ -54,7 +56,9 @@ namespace Dynamo::Graphics {
          * @param index_type
          */
         MeshDescriptor(unsigned vertex_count, unsigned instance_count, IndexType index_type) :
-            vertex_count(vertex_count), instance_count(instance_count), index_type(index_type) {}
+            vertex_count(vertex_count),
+            instance_count(instance_count),
+            index_type(index_type) {}
 
         /**
          * @brief Add a vertex attribute to the mesh.

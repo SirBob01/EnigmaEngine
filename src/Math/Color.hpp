@@ -71,6 +71,24 @@ namespace Dynamo {
          * @return std::array<float, 4>
          */
         std::array<float, 4> to_array() const { return {r, g, b, a}; }
+
+        /**
+         * @brief Equality operator.
+         *
+         * @param rhs
+         * @return true
+         * @return false
+         */
+        inline bool operator==(const Color &rhs) const { return r == rhs.r && g == rhs.g && b == rhs.b && a == rhs.a; }
+
+        /**
+         * @brief Inequality operator.
+         *
+         * @param rhs
+         * @return true
+         * @return false
+         */
+        inline bool operator!=(const Color &rhs) const { return !(*this == rhs); }
     };
 } // namespace Dynamo
 

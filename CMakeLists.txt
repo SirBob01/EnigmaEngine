@@ -16,7 +16,7 @@ set(BUILD_SHARED_LIBS OFF)
 add_subdirectory("submodules/fmt")
 add_subdirectory("submodules/glfw")
 add_subdirectory("submodules/portaudio")
-add_subdirectory("submodules/tinyobjloader")
+add_subdirectory("submodules/rapidobj")
 
 set(SPIRV_REFLECT_EXECUTABLE OFF CACHE BOOL "SPIRV-Reflect executable")
 set(SPIRV_REFLECT_EXAMPLES OFF CACHE BOOL "SPIRV-Reflect examples")
@@ -44,4 +44,4 @@ add_library(Dynamo SHARED ${SOURCES} ${INCLUDE} ${STB_SOURCES})
 target_include_directories(Dynamo PUBLIC "./src" "./submodules/stb")
 
 # Link all libraries together
-target_link_libraries(Dynamo fmt glfw Vulkan::Vulkan PortAudio sndfile tinyobjloader spirv-reflect-static shaderc)
+target_link_libraries(Dynamo fmt glfw Vulkan::Vulkan PortAudio sndfile rapidobj::rapidobj spirv-reflect-static shaderc)

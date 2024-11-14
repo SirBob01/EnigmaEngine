@@ -13,9 +13,6 @@
 [submodule "submodules/Catch2"]
 	path = submodules/Catch2
 	url = git@github.com:catchorg/Catch2.git
-[submodule "submodules/tinyobjloader"]
-	path = submodules/tinyobjloader
-	url = git@github.com:tinyobjloader/tinyobjloader.git
 [submodule "submodules/spirv-reflect"]
 	path = submodules/spirv-reflect
 	url = git@github.com:KhronosGroup/SPIRV-Reflect.git
@@ -25,3 +22,6 @@
 [submodule "submodules/shaderc"]
 	path = submodules/shaderc
 	url = git@github.com:SirBob01/shaderc.git
+[submodule "submodules/rapidobj"]
+	path = submodules/rapidobj
+	url = git@github.com:guybrush77/rapidobj.git

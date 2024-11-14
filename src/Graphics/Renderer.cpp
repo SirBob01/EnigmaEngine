@@ -104,6 +104,7 @@ namespace Dynamo::Graphics {
         color_descriptor.height = _swapchain.extent.height;
         color_descriptor.usage = TextureUsage::ColorTarget;
         color_descriptor.format = TextureFormat::ColorSurface;
+        color_descriptor.samples = TextureSamples::S64;
         destroy_texture(_color_texture);
         _color_texture = build_texture(color_descriptor);
 
@@ -113,6 +114,7 @@ namespace Dynamo::Graphics {
         depth_stencil_descriptor.height = _swapchain.extent.height;
         depth_stencil_descriptor.usage = TextureUsage::DepthStencilTarget;
         depth_stencil_descriptor.format = TextureFormat::DepthSurface;
+        depth_stencil_descriptor.samples = TextureSamples::S64;
         destroy_texture(_depth_stencil_texture);
         _depth_stencil_texture = build_texture(depth_stencil_descriptor);
 

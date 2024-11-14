@@ -6,14 +6,16 @@
 #include <Asset/Texture.hpp>
 
 namespace Dynamo::Asset {
-    Graphics::TextureDescriptor load_texture(const std::string filepath, unsigned generate_mip_levels) {
+    Graphics::TextureDescriptor load_texture(const std::string filepath) {
         int w, h, channels;
         unsigned char *buffer = stbi_load(filepath.c_str(), &w, &h, &channels, 4);
+        if (!buffer) {
+            Dynamo::Log::error("Failed to load texture: {}", filepath);
+        }
 
         Graphics::TextureDescriptor descriptor;
         descriptor.width = w;
         descriptor.height = h;
-        descriptor.mip_levels = generate_mip_levels;
         descriptor.texels.resize(w * h * 4);
 
         std::memcpy(descriptor.texels.data(), buffer, w * h * 4);
@@ -31,8 +33,11 @@ namespace Dynamo::Asset {
         Graphics::TextureDescriptor descriptor;
 
         int w, h, channels;
-        for (const std::string &path : {right, left, top, bottom, front, back}) {
-            unsigned char *buffer = stbi_load(path.c_str(), &w, &h, &channels, 4);
+        for (const std::string &filepath : {right, left, top, bottom, front, back}) {
+            unsigned char *buffer = stbi_load(filepath.c_str(), &w, &h, &channels, 4);
+            if (!buffer) {
+                Dynamo::Log::error("Failed to load texture: {}", filepath);
+            }
 
             unsigned buffer_offset = descriptor.texels.size();
             descriptor.texels.resize(buffer_offset + w * h * 4);
