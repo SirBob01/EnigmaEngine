@@ -1,73 +1,5 @@
 // Playground source file for testing new features.
-#include <string>
-#include <tiny_obj_loader.h>
-
 #include <Dynamo.hpp>
-
-Dynamo::Graphics::MeshDescriptor load_mesh(const std::string &filename) {
-    struct ObjVertex {
-        Dynamo::Vec3 position;
-        Dynamo::Vec2 uv;
-
-        inline bool operator==(const ObjVertex &other) const { return position == other.position && uv == other.uv; }
-
-        struct Hash {
-            inline size_t operator()(const ObjVertex &vertex) const {
-                size_t hash0 = std::hash<Dynamo::Vec3>{}(vertex.position);
-                size_t hash1 = std::hash<Dynamo::Vec2>{}(vertex.uv);
-
-                return hash0 ^ (hash1 << 1);
-            }
-        };
-    };
-
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename.c_str())) {
-        if (warn.length()) {
-            Dynamo::Log::warn("{}", warn);
-        }
-        if (err.length()) {
-            Dynamo::Log::error("{}", err);
-        }
-    }
-
-    std::unordered_map<ObjVertex, unsigned, ObjVertex::Hash> unique;
-
-    std::vector<Dynamo::Vec3> positions;
-    std::vector<Dynamo::Vec2> uvs;
-    std::vector<unsigned> indices;
-    for (const auto &shape : shapes) {
-        for (const auto &index : shape.mesh.indices) {
-            ObjVertex vertex;
-            vertex.position = Dynamo::Vec3(attrib.vertices[3 * index.vertex_index + 0],
-                                           attrib.vertices[3 * index.vertex_index + 1],
-                                           attrib.vertices[3 * index.vertex_index + 2]);
-            vertex.uv = Dynamo::Vec2(attrib.texcoords[2 * index.texcoord_index + 0],
-                                     1 - attrib.texcoords[2 * index.texcoord_index + 1]);
-
-            if (unique.count(vertex) == 0) {
-                unique[vertex] = positions.size();
-
-                positions.push_back(vertex.position);
-                uvs.push_back(vertex.uv);
-            }
-
-            indices.push_back(unique[vertex]);
-        }
-    }
-
-    Dynamo::Vec3 instance;
-    Dynamo::Graphics::MeshDescriptor descriptor(positions.size(), 1, Dynamo::Graphics::IndexType::U32);
-    descriptor.add_instance_attribute(&instance);
-    descriptor.add_vertex_attribute(positions.data());
-    descriptor.add_vertex_attribute(uvs.data());
-    descriptor.indices = indices;
-    return descriptor;
-}
 
 struct Transform {
     alignas(16) Dynamo::Mat4 mvp;
@@ -79,10 +11,6 @@ struct SkyboxTransform {
 
 struct Timer {
     alignas(16) float time;
-};
-
-struct Texture {
-    alignas(16) unsigned index;
 };
 
 static const char *CUBEMAP_VERTEX_SHADER = R"(
@@ -141,17 +69,14 @@ layout(push_constant) uniform Timer {
     float time;
 } timer;
 
-layout(set = 1, binding = 0) uniform sampler2D tex_sampler[2];
-layout(set = 1, binding = 1) uniform Texture {
-    uint index;
-} utexture;
+layout(set = 1, binding = 0) uniform sampler2D tex_sampler;
 
 layout(location = 0) in vec2 tex_coord;
 
 layout(location = 0) out vec4 out_color;
 
 void main() {
-    out_color = texture(tex_sampler[utexture.index], tex_coord);
+    out_color = texture(tex_sampler, tex_coord);
     out_color *= ((sin(timer.time) + 1) * 0.5);
 }
 )";
@@ -221,7 +146,14 @@ int main() {
     // Load the models
 
     // Build the model geometry
-    Dynamo::Graphics::MeshDescriptor model_mesh_descriptor = load_mesh("../assets/models/viking_room.obj");
+    Dynamo::Asset::Obj obj_model("../assets/models/viking/viking_room.obj");
+    Dynamo::Vec3 instance;
+    Dynamo::Graphics::MeshDescriptor model_mesh_descriptor(obj_model.groups[1].positions.size(),
+                                                           Dynamo::Graphics::IndexType::U32);
+    model_mesh_descriptor.add_instance_attribute(&instance);
+    model_mesh_descriptor.add_vertex_attribute(obj_model.groups[1].positions.data());
+    model_mesh_descriptor.add_vertex_attribute(obj_model.groups[1].uvs.data());
+    model_mesh_descriptor.indices = obj_model.groups[1].indices;
     Dynamo::Graphics::Mesh model_mesh = app.renderer().build_mesh(model_mesh_descriptor);
 
     // Build the flat mesh
@@ -242,7 +174,6 @@ int main() {
     vertex_shader_descriptor.name = "Vertex";
     vertex_shader_descriptor.code = MODEL_VERTEX_SHADER;
     vertex_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Vertex;
-    // vertex_shader_descriptor.shared_uniforms.push_back("timer");
     Dynamo::Graphics::Shader vertex = app.renderer().build_shader(vertex_shader_descriptor);
 
     // Build model fragment shader
@@ -297,19 +228,15 @@ int main() {
     Dynamo::Graphics::Uniform sampler_uniform0 = app.renderer().get_uniform(model0_uniforms, "tex_sampler").value();
     Dynamo::Graphics::Uniform sampler_uniform1 = app.renderer().get_uniform(model1_uniforms, "tex_sampler").value();
 
-    Dynamo::Graphics::Uniform texture_index0 = app.renderer().get_uniform(model0_uniforms, "utexture").value();
-    Dynamo::Graphics::Uniform texture_index1 = app.renderer().get_uniform(model1_uniforms, "utexture").value();
-
     Dynamo::Graphics::Uniform skytransform_uniform = app.renderer().get_uniform(skybox_uniforms, "transform").value();
     Dynamo::Graphics::Uniform cubemap_uniform = app.renderer().get_uniform(skybox_uniforms, "cubemap").value();
 
     // Build textures
     Dynamo::Graphics::TextureDescriptor viking_texture_descriptor =
-        Dynamo::Asset::load_texture("../assets/models/viking_room.png");
+        Dynamo::Asset::load_texture("../assets/models/viking/viking_room.png");
     Dynamo::Asset::generate_texture_mipmap(viking_texture_descriptor, 10);
     Dynamo::Graphics::Texture texture0 = app.renderer().build_texture(viking_texture_descriptor);
-    app.renderer().bind_texture(sampler_uniform0, texture0, 0);
-    app.renderer().bind_texture(sampler_uniform1, texture0, 0);
+    app.renderer().bind_texture(sampler_uniform0, texture0);
 
     Dynamo::Graphics::TextureDescriptor plane_texture_descriptor;
     std::array<Dynamo::Color, 4> colors = {
@@ -328,8 +255,7 @@ int main() {
     plane_texture_descriptor.height = 2;
 
     Dynamo::Graphics::Texture texture1 = app.renderer().build_texture(plane_texture_descriptor);
-    app.renderer().bind_texture(sampler_uniform0, texture1, 1);
-    app.renderer().bind_texture(sampler_uniform1, texture1, 1);
+    app.renderer().bind_texture(sampler_uniform1, texture1);
 
     Dynamo::Graphics::TextureDescriptor cubemap_texture_descriptor =
         Dynamo::Asset::load_texture_cubemap("../assets/textures/skybox/right.jpg",
@@ -471,24 +397,19 @@ int main() {
         // Update uniforms
         Timer timer;
         Transform transform;
-        Texture texture;
 
         timer.time = Dynamo::to_radians(frames);
         // Convert z-up model to y-up
         transform.mvp = camera.projection * camera.view *
                         Dynamo::Mat4({0, 0, 0}, Dynamo::Quaternion({1, 0, 0}, -M_PI_2), {1, 1, 1});
-        texture.index = 0;
         app.renderer().write_uniform(transform_uniform0, &transform);
         app.renderer().write_uniform(time_uniform0, &timer);
-        app.renderer().write_uniform(texture_index0, &texture);
 
         timer.time = -timer.time;
         transform.mvp = camera.projection * camera.view *
                         Dynamo::Mat4({0, -0.5, 0}, Dynamo::Quaternion({0, 1, 0}, timer.time), {1, 1, 1});
-        texture.index = 1;
         app.renderer().write_uniform(transform_uniform1, &transform);
         app.renderer().write_uniform(time_uniform1, &timer);
-        app.renderer().write_uniform(texture_index1, &texture);
 
         SkyboxTransform skybox_transform;
         Dynamo::Mat4 skybox_view = camera.view;
