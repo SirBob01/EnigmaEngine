@@ -6,14 +6,14 @@ namespace Dynamo::Graphics {
     Renderer::Renderer(const Display &display, const std::string &root_asset_directory) :
         _display(display),
         _context(_display),
-        _swapchain(_context.device, _context.physical, _display),
-        _memory(_context.device, _context.physical),
-        _descriptors(_context.device),
-        _meshes(_context.device, _context.physical, _memory, _context.transfer_pool),
+        _swapchain(_context, _display),
+        _memory(_context),
+        _descriptors(_context),
+        _meshes(_context, _memory),
         _shaders(_context.device),
-        _pipelines(_context.device, _context.physical, root_asset_directory + "/vulkan_cache.bin"),
-        _uniforms(_context.device, _context.physical, _memory, _descriptors, _context.transfer_pool),
-        _textures(_context.device, _context.physical, _memory, _context.transfer_pool),
+        _pipelines(_context, root_asset_directory + "/vulkan_cache.bin"),
+        _uniforms(_context, _memory, _descriptors),
+        _textures(_context, _memory),
         _frame_contexts(_context.device, _context.graphics_pool),
         _forwardpass(VkRenderPass_create(_context.device,
                                          _context.physical.samples,
@@ -96,7 +96,7 @@ namespace Dynamo::Graphics {
         vkDeviceWaitIdle(_context.device);
 
         // Rebuild the swapchain
-        _swapchain = Swapchain(_context.device, _context.physical, _display, _swapchain);
+        _swapchain = Swapchain(_context, _display, _swapchain);
 
         // Rebuild the color texture
         TextureDescriptor color_descriptor;
@@ -175,7 +175,7 @@ namespace Dynamo::Graphics {
     void Renderer::draw(const Model &model) { _models.push_back(model); }
 
     void Renderer::render() {
-        const FrameContext &frame = _frame_contexts.next();
+        const FrameContext &frame = _frame_contexts.get();
         vkWaitForFences(_context.device, 1, &frame.sync_fence, VK_TRUE, UINT64_MAX);
 
         unsigned image_index;
@@ -334,5 +334,6 @@ namespace Dynamo::Graphics {
         } else if (present_result != VK_SUCCESS) {
             VkResult_check("Present Render", present_result);
         }
+        _frame_contexts.advance();
     }
 } // namespace Dynamo::Graphics

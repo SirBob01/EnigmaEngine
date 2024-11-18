@@ -52,11 +52,9 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     class TextureRegistry {
-        VkDevice _device;
-        const PhysicalDevice &_physical;
+        const Context &_context;
         MemoryPool &_memory;
 
-        VkQueue _transfer_queue;
         VkCommandBuffer _command_buffer;
 
         std::unordered_map<SamplerSettings, VkSampler, SamplerSettings::Hash> _samplers;
@@ -69,10 +67,7 @@ namespace Dynamo::Graphics::Vulkan {
                           const VkImageSubresourceRange &subresources);
 
       public:
-        TextureRegistry(VkDevice device,
-                        const PhysicalDevice &physical,
-                        MemoryPool &memory,
-                        VkCommandPool transfer_pool);
+        TextureRegistry(const Context &context, MemoryPool &memory);
         ~TextureRegistry();
 
         Texture build(const TextureDescriptor &descriptor, const Swapchain &swapchain);

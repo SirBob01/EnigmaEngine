@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Texture.hpp>
+#include <Graphics/Vulkan/Context.hpp>
 #include <Graphics/Vulkan/DescriptorPool.hpp>
 #include <Graphics/Vulkan/FrameContext.hpp>
 #include <Graphics/Vulkan/MemoryPool.hpp>
@@ -66,7 +67,7 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     class UniformRegistry {
-        VkDevice _device;
+        const Context &_context;
         MemoryPool &_memory;
         DescriptorPool &_descriptors;
         VirtualMemory _push_constant_buffer;
@@ -86,11 +87,7 @@ namespace Dynamo::Graphics::Vulkan {
         void free_group(const UniformGroupInstance &group);
 
       public:
-        UniformRegistry(VkDevice device,
-                        const PhysicalDevice &physical,
-                        MemoryPool &memory,
-                        DescriptorPool &descriptors,
-                        VkCommandPool transfer_pool);
+        UniformRegistry(const Context &context, MemoryPool &memory, DescriptorPool &descriptors);
         ~UniformRegistry();
 
         UniformGroup build(const std::vector<DescriptorSetLayout> &descriptor_set_layouts,

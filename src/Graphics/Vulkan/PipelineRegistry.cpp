@@ -2,24 +2,23 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    PipelineRegistry::PipelineRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename) :
-        _device(device),
-        _physical(physical),
-        _pipeline_cache(VkPipelineCache_create(_device, filename)) {
-        _ofstream.open(filename, std::ios::trunc | std::ios::binary);
+    PipelineRegistry::PipelineRegistry(const Context &context, const std::string &cache_filename) :
+        _context(context),
+        _pipeline_cache(VkPipelineCache_create(_context.device, cache_filename)) {
+        _ofstream.open(cache_filename, std::ios::trunc | std::ios::binary);
     }
 
     PipelineRegistry::~PipelineRegistry() {
         // Clean up pipelines
-        vkDestroyPipelineCache(_device, _pipeline_cache, nullptr);
+        vkDestroyPipelineCache(_context.device, _pipeline_cache, nullptr);
         for (const auto &[key, pipeline] : _pipelines) {
-            vkDestroyPipeline(_device, pipeline, nullptr);
+            vkDestroyPipeline(_context.device, pipeline, nullptr);
         }
         _pipelines.clear();
 
         // Clean up pipeline layouts
         for (const auto &[key, layout] : _layouts) {
-            vkDestroyPipelineLayout(_device, layout, nullptr);
+            vkDestroyPipelineLayout(_context.device, layout, nullptr);
         }
         _layouts.clear();
 
@@ -84,7 +83,7 @@ namespace Dynamo::Graphics::Vulkan {
         if (layout_it != _layouts.end()) {
             instance.layout = layout_it->second;
         } else {
-            instance.layout = VkPipelineLayout_create(_device,
+            instance.layout = VkPipelineLayout_create(_context.device,
                                                       layout_settings.descriptor_set_layouts.data(),
                                                       layout_settings.descriptor_set_layouts.size(),
                                                       layout_settings.push_constant_ranges.data(),
@@ -100,7 +99,7 @@ namespace Dynamo::Graphics::Vulkan {
         pipeline_settings.topology = convert_topology(descriptor.topology);
         pipeline_settings.fill = convert_fill(descriptor.fill);
         pipeline_settings.cull = convert_cull(descriptor.cull);
-        pipeline_settings.samples = _physical.samples;
+        pipeline_settings.samples = _context.physical.samples;
         pipeline_settings.color_mask = 0;
         if (descriptor.color_mask.r) {
             pipeline_settings.color_mask |= VK_COLOR_COMPONENT_R_BIT;
@@ -121,7 +120,7 @@ namespace Dynamo::Graphics::Vulkan {
         if (pipeline_it != _pipelines.end()) {
             instance.handle = pipeline_it->second;
         } else {
-            instance.handle = VkPipeline_create(_device,
+            instance.handle = VkPipeline_create(_context.device,
                                                 _pipeline_cache,
                                                 pipeline_settings.layout,
                                                 renderpass,
@@ -151,9 +150,9 @@ namespace Dynamo::Graphics::Vulkan {
 
     void PipelineRegistry::write_to_disk() {
         size_t size;
-        vkGetPipelineCacheData(_device, _pipeline_cache, &size, nullptr);
+        vkGetPipelineCacheData(_context.device, _pipeline_cache, &size, nullptr);
         std::vector<char> buffer(size);
-        vkGetPipelineCacheData(_device, _pipeline_cache, &size, buffer.data());
+        vkGetPipelineCacheData(_context.device, _pipeline_cache, &size, buffer.data());
 
         _ofstream.write(buffer.data(), buffer.size());
     }

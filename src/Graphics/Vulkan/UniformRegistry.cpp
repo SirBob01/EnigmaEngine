@@ -8,12 +8,8 @@ namespace Dynamo::Graphics::Vulkan {
     // Limit of 128 bytes for push constants
     constexpr unsigned PUSH_CONSTANT_HEAP_SIZE = 128;
 
-    UniformRegistry::UniformRegistry(VkDevice device,
-                                     const PhysicalDevice &physical,
-                                     MemoryPool &memory,
-                                     DescriptorPool &descriptors,
-                                     VkCommandPool transfer_pool) :
-        _device(device),
+    UniformRegistry::UniformRegistry(const Context &context, MemoryPool &memory, DescriptorPool &descriptors) :
+        _context(context),
         _memory(memory),
         _descriptors(descriptors),
         _push_constant_buffer(PUSH_CONSTANT_HEAP_SIZE) {}
@@ -96,7 +92,7 @@ namespace Dynamo::Graphics::Vulkan {
     void UniformRegistry::free_group(const UniformGroupInstance &group) {
         // Free the descriptor sets
         for (const VirtualDescriptorSet &set : group.v_sets) {
-            _descriptors.free_descriptor_set(set);
+            _descriptors.free(set);
         }
 
         // Free uniform variables
@@ -111,7 +107,7 @@ namespace Dynamo::Graphics::Vulkan {
                                         const std::vector<PushConstantRange> &push_constant_ranges) {
         UniformGroupInstance group;
         for (const DescriptorSetLayout &layout : descriptor_set_layouts) {
-            VirtualDescriptorSet v_set = _descriptors.allocate_descriptor_set(layout.handle);
+            VirtualDescriptorSet v_set = _descriptors.allocate(layout.handle);
             group.v_sets.push_back(v_set);
             group.descriptor_sets.push_back(v_set.set);
 
@@ -142,7 +138,7 @@ namespace Dynamo::Graphics::Vulkan {
                         write.dstArrayElement = i;
                         write.descriptorCount = 1;
                         write.pBufferInfo = &buffer_info;
-                        vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+                        vkUpdateDescriptorSets(_context.device, 1, &write, 0, nullptr);
                     }
                 }
 
@@ -214,7 +210,7 @@ namespace Dynamo::Graphics::Vulkan {
         write.descriptorCount = 1;
         write.pImageInfo = &image_info;
 
-        vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+        vkUpdateDescriptorSets(_context.device, 1, &write, 0, nullptr);
     }
 
     void UniformRegistry::destroy(UniformGroup group) {

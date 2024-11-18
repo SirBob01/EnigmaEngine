@@ -1257,9 +1257,15 @@ namespace Dynamo::Graphics::Vulkan {
         // Enable descriptor indexing features
         VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing = {};
         descriptor_indexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-        descriptor_indexing.descriptorBindingPartiallyBound = true;
         descriptor_indexing.runtimeDescriptorArray = true;
+        descriptor_indexing.descriptorBindingPartiallyBound = true;
         descriptor_indexing.descriptorBindingVariableDescriptorCount = true;
+        descriptor_indexing.descriptorBindingUniformBufferUpdateAfterBind = true;
+        descriptor_indexing.descriptorBindingStorageBufferUpdateAfterBind = true;
+        descriptor_indexing.descriptorBindingSampledImageUpdateAfterBind = true;
+        descriptor_indexing.descriptorBindingStorageImageUpdateAfterBind = true;
+        descriptor_indexing.descriptorBindingUniformTexelBufferUpdateAfterBind = true;
+        descriptor_indexing.descriptorBindingStorageTexelBufferUpdateAfterBind = true;
 
         std::vector<QueueFamilyRef> queue_families = physical.unique_queue_families();
         std::vector<const char *> extensions = physical.required_extensions();
@@ -1464,10 +1470,20 @@ namespace Dynamo::Graphics::Vulkan {
     VkDescriptorSetLayout VkDescriptorSetLayout_create(VkDevice device,
                                                        const VkDescriptorSetLayoutBinding *bindings,
                                                        unsigned binding_count) {
+        auto flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+        std::vector<VkDescriptorBindingFlags> flag_set(binding_count, flags);
+        VkDescriptorSetLayoutBindingFlagsCreateInfo flags_info = {};
+        flags_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+        flags_info.pNext = nullptr;
+        flags_info.pBindingFlags = flag_set.data();
+        flags_info.bindingCount = flag_set.size();
+
         VkDescriptorSetLayoutCreateInfo layout_info = {};
         layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         layout_info.bindingCount = binding_count;
         layout_info.pBindings = bindings;
+        layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+        layout_info.pNext = &flags_info;
 
         VkDescriptorSetLayout vk_layout;
         VkResult_check("Create Descriptor Set Layout",

@@ -1,8 +1,8 @@
+#include <Graphics/Vulkan/Context.hpp>
 #include <Graphics/Vulkan/Utils.hpp>
-#include <Graphics/Vulkan/VulkanContext.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    VulkanContext::VulkanContext(const Display &display) :
+    Context::Context(const Display &display) :
         instance(VkInstance_create(display)),
 #ifdef DYN_DEBUG
         debugger(VkDebugUtilsMessengerEXT_create(instance)),
@@ -12,9 +12,13 @@ namespace Dynamo::Graphics::Vulkan {
         device(VkDevice_create(physical)),
         graphics_pool(VkCommandPool_create(device, physical.graphics_queues)),
         transfer_pool(VkCommandPool_create(device, physical.transfer_queues)) {
+        vkGetDeviceQueue(device, physical.graphics_queues.index, 0, &graphics_queue);
+        vkGetDeviceQueue(device, physical.present_queues.index, 0, &present_queue);
+        vkGetDeviceQueue(device, physical.compute_queues.index, 0, &compute_queue);
+        vkGetDeviceQueue(device, physical.transfer_queues.index, 0, &transfer_queue);
     }
 
-    VulkanContext::~VulkanContext() {
+    Context::~Context() {
         vkDestroyCommandPool(device, graphics_pool, nullptr);
         vkDestroyCommandPool(device, transfer_pool, nullptr);
         vkDestroyDevice(device, nullptr);

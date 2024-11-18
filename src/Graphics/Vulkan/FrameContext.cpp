@@ -24,9 +24,9 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    const FrameContext &FrameContextList::next() {
-        FrameContext &context = _contexts[_index];
-        _index = (_index + 1) % MAX_FRAMES_IN_FLIGHT;
-        return context;
-    }
+    const FrameContext &FrameContextList::get() const { return _contexts[_index]; }
+
+    void FrameContextList::advance() { _index = (_index + 1) % MAX_FRAMES_IN_FLIGHT; }
+
+    unsigned FrameContextList::index() const { return _index; }
 } // namespace Dynamo::Graphics::Vulkan

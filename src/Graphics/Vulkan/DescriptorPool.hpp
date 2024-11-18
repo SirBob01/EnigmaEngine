@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Graphics/Vulkan/Context.hpp>
 #include <vulkan/vulkan_core.h>
 
 namespace Dynamo::Graphics::Vulkan {
@@ -17,16 +18,16 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     class DescriptorPool {
-        VkDevice _device;
+        const Context &_context;
 
         std::unordered_map<VkDescriptorSetLayout, DescriptorPoolCache> _pools;
 
       public:
-        DescriptorPool(VkDevice device);
+        DescriptorPool(const Context &context);
         ~DescriptorPool();
 
-        VirtualDescriptorSet allocate_descriptor_set(VkDescriptorSetLayout layout);
+        VirtualDescriptorSet allocate(VkDescriptorSetLayout layout);
 
-        void free_descriptor_set(const VirtualDescriptorSet &set);
+        void free(const VirtualDescriptorSet &set);
     };
 } // namespace Dynamo::Graphics::Vulkan
