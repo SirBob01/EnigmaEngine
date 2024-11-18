@@ -219,6 +219,7 @@ namespace Dynamo::Graphics::Vulkan {
     std::vector<const char *> PhysicalDevice::required_extensions() const {
         std::vector<const char *> required_extensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         };
 
         // Check if portability subset extension is available

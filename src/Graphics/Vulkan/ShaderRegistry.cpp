@@ -5,9 +5,6 @@
 
 namespace Dynamo::Graphics::Vulkan {
     constexpr char INSTANCE_VAR_PREFIX[] = "instance";
-    constexpr VkShaderStageFlags SUPPORTED_SHADER_STAGES =
-        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT |
-        VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT | VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 
     ShaderRegistry::ShaderRegistry(VkDevice device) : _device(device) {}
 
@@ -133,7 +130,7 @@ namespace Dynamo::Graphics::Vulkan {
                 VkDescriptorSetLayoutBinding layout_binding;
                 layout_binding.binding = refl_binding.binding;
                 layout_binding.pImmutableSamplers = nullptr;
-                layout_binding.stageFlags = SUPPORTED_SHADER_STAGES;
+                layout_binding.stageFlags = VK_SHADER_STAGE_ALL;
                 layout_binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
                 layout_binding.descriptorCount = 1;
                 for (unsigned k = 0; k < refl_binding.array.dims_count; k++) {
@@ -190,7 +187,7 @@ namespace Dynamo::Graphics::Vulkan {
             range.name = block.name;
             range.block.offset = block.offset;
             range.block.size = block.size;
-            range.block.stageFlags = SUPPORTED_SHADER_STAGES;
+            range.block.stageFlags = VK_SHADER_STAGE_ALL;
 
             module.push_constant_ranges.push_back(range);
             Log::info("* Push Constant Range (name: {}, offset: {}, size: {})",

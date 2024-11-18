@@ -3,6 +3,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Texture.hpp>
+#include <Graphics/Vulkan/Context.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
 #include <Utils/Allocator.hpp>
 
@@ -39,8 +40,7 @@ namespace Dynamo::Graphics::Vulkan {
         };
         using MemoryGroup = std::vector<Memory>;
 
-        VkDevice _device;
-        const PhysicalDevice &_physical;
+        const Context &_context;
         std::vector<MemoryGroup> _groups;
 
         unsigned find_type_index(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) const;
@@ -48,7 +48,7 @@ namespace Dynamo::Graphics::Vulkan {
         VirtualMemory allocate_memory(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties);
 
       public:
-        MemoryPool(VkDevice device, const PhysicalDevice &physical);
+        MemoryPool(const Context &context);
         ~MemoryPool();
 
         VirtualBuffer allocate_buffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size);

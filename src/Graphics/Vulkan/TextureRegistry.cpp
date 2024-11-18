@@ -2,26 +2,23 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    TextureRegistry::TextureRegistry(VkDevice device,
-                                     const PhysicalDevice &physical,
-                                     MemoryPool &memory,
-                                     VkCommandPool transfer_pool) :
-        _device(device),
-        _physical(physical),
-        _memory(memory) {
-        VkCommandBuffer_allocate(_device, transfer_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, &_command_buffer, 1);
-        vkGetDeviceQueue(_device, physical.transfer_queues.index, 0, &_transfer_queue);
+    TextureRegistry::TextureRegistry(const Context &context, MemoryPool &memory) : _context(context), _memory(memory) {
+        VkCommandBuffer_allocate(_context.device,
+                                 _context.transfer_pool,
+                                 VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                 &_command_buffer,
+                                 1);
     }
 
     TextureRegistry::~TextureRegistry() {
         _instances.foreach ([&](TextureInstance &instance) {
-            vkDestroyImageView(_device, instance.view, nullptr);
+            vkDestroyImageView(_context.device, instance.view, nullptr);
             _memory.free_image(instance.image);
         });
         _instances.clear();
 
         for (const auto &[key, sampler] : _samplers) {
-            vkDestroySampler(_device, sampler, nullptr);
+            vkDestroySampler(_context.device, sampler, nullptr);
         }
         _samplers.clear();
     }
@@ -80,7 +77,7 @@ namespace Dynamo::Graphics::Vulkan {
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // TODO: should this depend on the texture usage?
             subresources);
-        VkCommandBuffer_immediate_end(_command_buffer, _transfer_queue);
+        VkCommandBuffer_immediate_end(_command_buffer, _context.transfer_queue);
 
         // Free the staging buffer
         _memory.free_buffer(staging);
@@ -104,7 +101,7 @@ namespace Dynamo::Graphics::Vulkan {
         if (sampler_it != _samplers.end()) {
             instance.sampler = sampler_it->second;
         } else {
-            instance.sampler = VkSampler_create(_device,
+            instance.sampler = VkSampler_create(_context.device,
                                                 sampler_settings.u_address_mode,
                                                 sampler_settings.v_address_mode,
                                                 sampler_settings.w_address_mode,
@@ -112,7 +109,7 @@ namespace Dynamo::Graphics::Vulkan {
                                                 sampler_settings.min_filter,
                                                 sampler_settings.mipmap_mode,
                                                 sampler_settings.border_color,
-                                                _physical.properties.limits.maxSamplerAnisotropy,
+                                                _context.physical.properties.limits.maxSamplerAnisotropy,
                                                 sampler_settings.mip_levels);
             _samplers.emplace(sampler_settings, instance.sampler);
         }
@@ -134,8 +131,10 @@ namespace Dynamo::Graphics::Vulkan {
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
         VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        VkFormat format = convert_texture_format(descriptor.format, swapchain.surface_format, _physical.depth_format);
-        VkSampleCountFlagBits samples = std::min(convert_texture_samples(descriptor.samples), _physical.samples);
+        VkFormat format =
+            convert_texture_format(descriptor.format, swapchain.surface_format, _context.physical.depth_format);
+        VkSampleCountFlagBits samples =
+            std::min(convert_texture_samples(descriptor.samples), _context.physical.samples);
         VkImageCreateFlags flags = 0;
 
         // Handle different usage cases
@@ -180,7 +179,7 @@ namespace Dynamo::Graphics::Vulkan {
         } else {
             view_type = VK_IMAGE_VIEW_TYPE_3D;
         }
-        instance.view = VkImageView_create(_device, instance.image.image, format, view_type, subresources);
+        instance.view = VkImageView_create(_context.device, instance.image.image, format, view_type, subresources);
 
         return _instances.insert(instance);
     }
@@ -189,7 +188,7 @@ namespace Dynamo::Graphics::Vulkan {
 
     void TextureRegistry::destroy(Texture texture) {
         const TextureInstance &instance = _instances.get(texture);
-        vkDestroyImageView(_device, instance.view, nullptr);
+        vkDestroyImageView(_context.device, instance.view, nullptr);
         _memory.free_image(instance.image);
         _instances.remove(texture);
     }

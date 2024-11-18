@@ -22,16 +22,15 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     class MeshRegistry {
-        VkDevice _device;
+        const Context &_context;
         VkCommandBuffer _command_buffer;
-        VkQueue _transfer_queue;
         MemoryPool &_memory;
         SparseArray<Mesh, MeshInstance> _instances;
 
         void write_vertices(const void *src, VirtualBuffer &dst, unsigned size);
 
       public:
-        MeshRegistry(VkDevice device, const PhysicalDevice &physical, MemoryPool &memory, VkCommandPool transfer_pool);
+        MeshRegistry(const Context &context, MemoryPool &memory);
         ~MeshRegistry();
 
         MeshInstance &get(Mesh mesh);

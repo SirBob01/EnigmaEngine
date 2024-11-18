@@ -2,12 +2,9 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    Swapchain::Swapchain(VkDevice device,
-                         const PhysicalDevice &physical,
-                         const Display &display,
-                         std::optional<Swapchain> previous) :
-        device(device) {
-        SwapchainOptions options = physical.get_swapchain_options();
+    Swapchain::Swapchain(const Context &context, const Display &display, std::optional<Swapchain> previous) :
+        device(context.device) {
+        SwapchainOptions options = context.physical.get_swapchain_options();
 
         // Compute swapchain size
         Vec2 size = display.get_framebuffer_size();
@@ -42,7 +39,7 @@ namespace Dynamo::Graphics::Vulkan {
         // Create swapchain handle
         VkSwapchainCreateInfoKHR swapchain_info = {};
         swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        swapchain_info.surface = physical.surface;
+        swapchain_info.surface = context.physical.surface;
         swapchain_info.preTransform = options.capabilities.currentTransform;
         swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
         swapchain_info.presentMode = present_mode;
@@ -59,8 +56,8 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Share images across graphics and present queue families
         std::array<unsigned, 2> queue_family_indices = {
-            physical.graphics_queues.index,
-            physical.present_queues.index,
+            context.physical.graphics_queues.index,
+            context.physical.present_queues.index,
         };
         if (queue_family_indices[0] != queue_family_indices[1]) {
             swapchain_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;

@@ -2,14 +2,12 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    MeshRegistry::MeshRegistry(VkDevice device,
-                               const PhysicalDevice &physical,
-                               MemoryPool &memory,
-                               VkCommandPool transfer_pool) :
-        _device(device),
-        _memory(memory) {
-        VkCommandBuffer_allocate(_device, transfer_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, &_command_buffer, 1);
-        vkGetDeviceQueue(_device, physical.transfer_queues.index, 0, &_transfer_queue);
+    MeshRegistry::MeshRegistry(const Context &context, MemoryPool &memory) : _context(context), _memory(memory) {
+        VkCommandBuffer_allocate(_context.device,
+                                 _context.transfer_pool,
+                                 VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                                 &_command_buffer,
+                                 1);
     }
 
     MeshRegistry::~MeshRegistry() {
@@ -35,7 +33,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         VkCommandBuffer_immediate_start(_command_buffer);
         vkCmdCopyBuffer(_command_buffer, staging.buffer, dst.buffer, 1, &region);
-        VkCommandBuffer_immediate_end(_command_buffer, _transfer_queue);
+        VkCommandBuffer_immediate_end(_command_buffer, _context.transfer_queue);
 
         _memory.free_buffer(staging);
     }

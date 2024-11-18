@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Pipeline.hpp>
+#include <Graphics/Vulkan/Context.hpp>
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
 #include <Graphics/Vulkan/UniformRegistry.hpp>
@@ -107,8 +108,7 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     class PipelineRegistry {
-        VkDevice _device;
-        const PhysicalDevice &_physical;
+        const Context &_context;
 
         std::ofstream _ofstream;
         VkPipelineCache _pipeline_cache;
@@ -119,7 +119,7 @@ namespace Dynamo::Graphics::Vulkan {
         SparseArray<Pipeline, PipelineInstance> _instances;
 
       public:
-        PipelineRegistry(VkDevice device, const PhysicalDevice &physical, const std::string &filename);
+        PipelineRegistry(const Context &context, const std::string &cache_filename);
         ~PipelineRegistry();
 
         Pipeline build(const PipelineDescriptor &descriptor,

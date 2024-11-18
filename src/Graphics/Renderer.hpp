@@ -6,6 +6,7 @@
 #include <Graphics/Mesh.hpp>
 #include <Graphics/Model.hpp>
 #include <Graphics/Texture.hpp>
+#include <Graphics/Vulkan/Context.hpp>
 #include <Graphics/Vulkan/DescriptorPool.hpp>
 #include <Graphics/Vulkan/FrameContext.hpp>
 #include <Graphics/Vulkan/MeshRegistry.hpp>
@@ -15,7 +16,6 @@
 #include <Graphics/Vulkan/Swapchain.hpp>
 #include <Graphics/Vulkan/TextureRegistry.hpp>
 #include <Graphics/Vulkan/UniformRegistry.hpp>
-#include <Graphics/Vulkan/VulkanContext.hpp>
 #include <Math/Color.hpp>
 
 namespace Dynamo::Graphics {
@@ -25,7 +25,7 @@ namespace Dynamo::Graphics {
      */
     class Renderer {
         const Display &_display;
-        Vulkan::VulkanContext _context;
+        Vulkan::Context _context;
         Vulkan::Swapchain _swapchain;
 
         Vulkan::MemoryPool _memory;

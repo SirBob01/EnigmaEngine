@@ -6,7 +6,7 @@
 
 namespace Dynamo::Graphics::Vulkan {
     // Can't be too high or we'll experience latency
-    constexpr unsigned MAX_FRAMES_IN_FLIGHT = 3;
+    constexpr unsigned MAX_FRAMES_IN_FLIGHT = 2;
 
     struct FrameContext {
         VkFence sync_fence;
@@ -24,6 +24,10 @@ namespace Dynamo::Graphics::Vulkan {
         FrameContextList(VkDevice device, VkCommandPool command_pool);
         ~FrameContextList();
 
-        const FrameContext &next();
+        const FrameContext &get() const;
+
+        void advance();
+
+        unsigned index() const;
     };
 } // namespace Dynamo::Graphics::Vulkan

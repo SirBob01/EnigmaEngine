@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Display.hpp>
+#include <Graphics/Vulkan/Context.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
@@ -21,10 +22,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         unsigned array_layers;
 
-        Swapchain(VkDevice device,
-                  const PhysicalDevice &physical,
-                  const Display &display,
-                  std::optional<Swapchain> previous = {});
+        Swapchain(const Context &context, const Display &display, std::optional<Swapchain> previous = {});
 
         // Need to bypass destructor call order to perform swapchain recreation
         void destroy();
