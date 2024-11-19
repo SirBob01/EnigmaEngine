@@ -1185,6 +1185,35 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
+    VkBufferUsageFlags convert_buffer_usage(BufferUsage usage) {
+        switch (usage) {
+        case BufferUsage::Vertex:
+            return VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        case BufferUsage::Index:
+            return VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                   VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        case BufferUsage::Uniform:
+            return VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        case BufferUsage::Storage:
+            return VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        case BufferUsage::Staging:
+            return VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            break;
+        }
+    }
+
+    VkMemoryPropertyFlags convert_memory_property(MemoryProperty property) {
+        switch (property) {
+        case MemoryProperty::HostVisible:
+            return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        case MemoryProperty::DeviceLocal:
+            return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        }
+    }
+
     VkInstance VkInstance_create(const Display &display) {
         std::vector<const char *> extensions = display.get_vulkan_extensions();
 

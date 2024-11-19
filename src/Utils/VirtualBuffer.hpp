@@ -9,13 +9,13 @@ namespace Dynamo {
      * @brief Virtual memory buffer.
      *
      */
-    class VirtualMemory {
+    class VirtualBuffer {
         std::vector<char> _buffer;
         Allocator _allocator;
         unsigned _alignment;
 
       public:
-        VirtualMemory(unsigned capacity, unsigned alignment = 1);
+        VirtualBuffer(unsigned capacity, unsigned alignment = 1);
 
         /**
          * @brief Get the capacity of the heap.

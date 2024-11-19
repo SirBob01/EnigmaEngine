@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Texture.hpp>
+#include <Graphics/Vulkan/BufferRegistry.hpp>
 #include <Graphics/Vulkan/MemoryPool.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
 #include <Graphics/Vulkan/Swapchain.hpp>
@@ -46,16 +47,16 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     struct TextureInstance {
-        VirtualImage image;
+        VkImage image;
         VkImageView view;
         VkSampler sampler;
+        VirtualMemory memory;
     };
 
     class TextureRegistry {
         const Context &_context;
         MemoryPool &_memory;
-
-        VkCommandBuffer _command_buffer;
+        BufferRegistry &_buffers;
 
         std::unordered_map<SamplerSettings, VkSampler, SamplerSettings::Hash> _samplers;
         SparseArray<Texture, TextureInstance> _instances;
@@ -67,7 +68,7 @@ namespace Dynamo::Graphics::Vulkan {
                           const VkImageSubresourceRange &subresources);
 
       public:
-        TextureRegistry(const Context &context, MemoryPool &memory);
+        TextureRegistry(const Context &context, MemoryPool &memory, BufferRegistry &buffers);
         ~TextureRegistry();
 
         Texture build(const TextureDescriptor &descriptor, const Swapchain &swapchain);

@@ -16,6 +16,9 @@ namespace Dynamo::Graphics::Vulkan {
         vkGetDeviceQueue(device, physical.present_queues.index, 0, &present_queue);
         vkGetDeviceQueue(device, physical.compute_queues.index, 0, &compute_queue);
         vkGetDeviceQueue(device, physical.transfer_queues.index, 0, &transfer_queue);
+
+        // Allocate a dedicated transfer command buffer for immediate submissions
+        VkCommandBuffer_allocate(device, transfer_pool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, &transfer_command_buffer, 1);
     }
 
     Context::~Context() {

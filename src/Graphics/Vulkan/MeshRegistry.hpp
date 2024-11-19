@@ -5,13 +5,14 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Graphics/Mesh.hpp>
+#include <Graphics/Vulkan/BufferRegistry.hpp>
 #include <Graphics/Vulkan/MemoryPool.hpp>
 #include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
     struct MeshInstance {
         std::vector<VkDeviceSize> attribute_offsets;
-        std::vector<VirtualBuffer> virtual_buffers;
+        std::vector<Buffer> virtual_buffers;
         std::vector<VkBuffer> buffers;
         VkBuffer index_buffer;
         unsigned index_offset;
@@ -23,14 +24,14 @@ namespace Dynamo::Graphics::Vulkan {
 
     class MeshRegistry {
         const Context &_context;
-        VkCommandBuffer _command_buffer;
-        MemoryPool &_memory;
+        BufferRegistry &_buffers;
+
         SparseArray<Mesh, MeshInstance> _instances;
 
-        void write_vertices(const void *src, VirtualBuffer &dst, unsigned size);
+        void write_vertices(const void *src, Buffer dst, unsigned size);
 
       public:
-        MeshRegistry(const Context &context, MemoryPool &memory);
+        MeshRegistry(const Context &context, BufferRegistry &buffers);
         ~MeshRegistry();
 
         MeshInstance &get(Mesh mesh);

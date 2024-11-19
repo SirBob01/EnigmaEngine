@@ -2,15 +2,16 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    constexpr VkMemoryPropertyFlags UNIFORM_MEMORY_PROPERTIES =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
     // Limit of 128 bytes for push constants
     constexpr unsigned PUSH_CONSTANT_HEAP_SIZE = 128;
 
-    UniformRegistry::UniformRegistry(const Context &context, MemoryPool &memory, DescriptorPool &descriptors) :
+    UniformRegistry::UniformRegistry(const Context &context,
+                                     MemoryPool &memory,
+                                     BufferRegistry &buffers,
+                                     DescriptorPool &descriptors) :
         _context(context),
         _memory(memory),
+        _buffers(buffers),
         _descriptors(descriptors),
         _push_constant_buffer(PUSH_CONSTANT_HEAP_SIZE) {}
 
@@ -20,12 +21,15 @@ namespace Dynamo::Graphics::Vulkan {
         _groups.clear();
     }
 
-    VirtualBuffer UniformRegistry::allocate_descriptor_binding(VkDescriptorSet set, const DescriptorBinding &binding) {
-        unsigned size = binding.size * binding.count;
+    Buffer UniformRegistry::allocate_descriptor_binding(VkDescriptorSet set, const DescriptorBinding &binding) {
+        BufferDescriptor uniform_descriptor;
+        uniform_descriptor.size = binding.size * binding.count;
+        uniform_descriptor.usage = BufferUsage::Uniform;
+        uniform_descriptor.property = MemoryProperty::HostVisible;
 
         // Not shared, allocate a new buffer
         if (!binding.shared) {
-            return _memory.allocate_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, UNIFORM_MEMORY_PROPERTIES, size);
+            return _buffers.build(uniform_descriptor);
         }
 
         // If shared, find the allocation and increase ref count
@@ -38,7 +42,7 @@ namespace Dynamo::Graphics::Vulkan {
         // No allocation was found, create a new one
         SharedDescriptor shared;
         shared.ref_count = 1;
-        shared.buffer = _memory.allocate_buffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, UNIFORM_MEMORY_PROPERTIES, size);
+        shared.buffer = _buffers.build(uniform_descriptor);
         _shared_descriptors.emplace(binding.name, shared);
         return shared.buffer;
     }
@@ -70,7 +74,7 @@ namespace Dynamo::Graphics::Vulkan {
             auto shared_it = _shared_descriptors.find(var.name);
             if (var.descriptor.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
                 if (shared_it == _shared_descriptors.end() || shared_it->second.ref_count == 1) {
-                    _memory.free_buffer(var.descriptor.buffer);
+                    _buffers.destroy(var.descriptor.buffer);
                 } else if (shared_it != _shared_descriptors.end()) {
                     shared_it->second.ref_count--;
                 }
@@ -124,10 +128,11 @@ namespace Dynamo::Graphics::Vulkan {
                 // Allocate uniform buffers
                 if (binding.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
                     var.descriptor.buffer = allocate_descriptor_binding(v_set.set, binding);
+                    const BufferInstance &buffer_instance = _buffers.get(var.descriptor.buffer);
                     for (unsigned i = 0; i < binding.count; i++) {
                         VkDescriptorBufferInfo buffer_info;
-                        buffer_info.buffer = var.descriptor.buffer.buffer;
-                        buffer_info.offset = var.descriptor.buffer.offset + i * binding.size;
+                        buffer_info.buffer = buffer_instance.buffer;
+                        buffer_info.offset = buffer_instance.offset + i * binding.size;
                         buffer_info.range = binding.size;
 
                         VkWriteDescriptorSet write = {};
@@ -181,7 +186,8 @@ namespace Dynamo::Graphics::Vulkan {
         const UniformInstance &var = _uniforms.get(uniform);
         switch (var.type) {
         case UniformType::Descriptor: {
-            char *dst = static_cast<char *>(var.descriptor.buffer.mapped);
+            const BufferInstance &buffer_instance = _buffers.get(var.descriptor.buffer);
+            char *dst = static_cast<char *>(buffer_instance.memory.mapped);
             std::memcpy(dst + index * var.descriptor.size, data, var.descriptor.size * count);
             break;
         }

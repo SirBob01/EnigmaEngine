@@ -9,11 +9,12 @@ namespace Dynamo::Graphics {
         _swapchain(_context, _display),
         _memory(_context),
         _descriptors(_context),
-        _meshes(_context, _memory),
+        _buffers(_context, _memory),
+        _textures(_context, _memory, _buffers),
+        _meshes(_context, _buffers),
         _shaders(_context.device),
         _pipelines(_context, root_asset_directory + "/vulkan_cache.bin"),
-        _uniforms(_context, _memory, _descriptors),
-        _textures(_context, _memory),
+        _uniforms(_context, _memory, _buffers, _descriptors),
         _frame_contexts(_context.device, _context.graphics_pool),
         _forwardpass(VkRenderPass_create(_context.device,
                                          _context.physical.samples,
@@ -139,6 +140,30 @@ namespace Dynamo::Graphics {
     Shader Renderer::build_shader(const ShaderDescriptor &descriptor) { return _shaders.build(descriptor); }
 
     void Renderer::destroy_shader(Shader shader) { _shaders.destroy(shader); }
+
+    Buffer Renderer::build_buffer(const BufferDescriptor &descriptor) { return _buffers.build(descriptor); }
+
+    void Renderer::destroy_buffer(Buffer buffer) { _buffers.destroy(buffer); }
+
+    void Renderer::write_buffer(void *src, Buffer dst, unsigned dst_offset, unsigned length) {
+        const BufferInstance &dst_instance = _buffers.get(dst);
+        unsigned char *dst_ptr = static_cast<unsigned char *>(dst_instance.memory.mapped);
+        std::memcpy(dst_ptr + dst_offset, src, length);
+    }
+
+    void Renderer::copy_buffer(Buffer src, Buffer dst, unsigned src_offset, unsigned dst_offset, unsigned length) {
+        const BufferInstance &src_instance = _buffers.get(src);
+        const BufferInstance &dst_instance = _buffers.get(dst);
+
+        VkBufferCopy region;
+        region.srcOffset = src_instance.offset + src_offset;
+        region.dstOffset = dst_instance.offset + dst_offset;
+        region.size = length;
+
+        VkCommandBuffer_immediate_start(_context.transfer_command_buffer);
+        vkCmdCopyBuffer(_context.transfer_command_buffer, src_instance.buffer, dst_instance.buffer, 1, &region);
+        VkCommandBuffer_immediate_end(_context.transfer_command_buffer, _context.transfer_queue);
+    }
 
     Texture Renderer::build_texture(const TextureDescriptor &descriptor) {
         return _textures.build(descriptor, _swapchain);

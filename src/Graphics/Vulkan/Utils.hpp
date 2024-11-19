@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <Display.hpp>
+#include <Graphics/Buffer.hpp>
 #include <Graphics/Pipeline.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
@@ -48,6 +49,10 @@ namespace Dynamo::Graphics::Vulkan {
     VkSamplerAddressMode convert_texture_address_mode(TextureAddressMode address_mode);
 
     VkSampleCountFlagBits convert_texture_samples(TextureSamples samples);
+
+    VkBufferUsageFlags convert_buffer_usage(BufferUsage usage);
+
+    VkMemoryPropertyFlags convert_memory_property(MemoryProperty property);
 
     VkInstance VkInstance_create(const Display &display);
 
