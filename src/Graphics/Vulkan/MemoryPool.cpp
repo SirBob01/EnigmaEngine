@@ -14,7 +14,7 @@ namespace Dynamo::Graphics::Vulkan {
         // Free device memory
         for (const MemoryGroup &group : _groups) {
             for (const Memory &memory : group) {
-                vkFreeMemory(_context.device, memory.handle, nullptr);
+                vkFreeMemory(_context.device, memory.memory, nullptr);
             }
         }
         _groups.clear();
@@ -36,8 +36,7 @@ namespace Dynamo::Graphics::Vulkan {
         return type_index;
     }
 
-    MemoryPool::VirtualMemory MemoryPool::allocate_memory(const VkMemoryRequirements &requirements,
-                                                          VkMemoryPropertyFlags properties) {
+    VirtualMemory MemoryPool::allocate(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) {
         // Find compatible memory block and suballocate
         unsigned type = find_type_index(requirements, properties);
         MemoryGroup &group = _groups[type];
@@ -51,7 +50,7 @@ namespace Dynamo::Graphics::Vulkan {
                 allocation.key.type = type;
                 allocation.key.index = index;
                 allocation.key.offset = result.value();
-                allocation.memory = memory.handle;
+                allocation.memory = memory.memory;
                 allocation.mapped = nullptr;
                 if (base_ptr) {
                     allocation.mapped = base_ptr + allocation.key.offset;
@@ -78,73 +77,7 @@ namespace Dynamo::Graphics::Vulkan {
         return allocation;
     }
 
-    VirtualBuffer
-    MemoryPool::allocate_buffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size) {
-        // Create the buffer
-        VkBuffer buffer = VkBuffer_create(_context.device, usage, size, nullptr, 0);
-
-        // Allocate memory and bind to buffer
-        VkMemoryRequirements requirements;
-        vkGetBufferMemoryRequirements(_context.device, buffer, &requirements);
-
-        VirtualMemory memory = allocate_memory(requirements, properties);
-        vkBindBufferMemory(_context.device, buffer, memory.memory, memory.key.offset);
-
-        VirtualBuffer v_buffer;
-        v_buffer.buffer = buffer;
-        v_buffer.key = memory.key;
-        v_buffer.offset = 0; // TODO: Suballocation
-        v_buffer.mapped = memory.mapped;
-        return v_buffer;
-    }
-
-    VirtualImage MemoryPool::allocate_image(const VkExtent3D &extent,
-                                            VkFormat format,
-                                            VkImageLayout layout,
-                                            VkImageType type,
-                                            VkImageTiling tiling,
-                                            VkImageUsageFlags usage,
-                                            VkSampleCountFlagBits samples,
-                                            VkImageCreateFlags flags,
-                                            unsigned mip_levels,
-                                            unsigned array_layers) {
-        // Create the image
-        VkImage image = VkImage_create(_context.device,
-                                       extent,
-                                       format,
-                                       layout,
-                                       type,
-                                       tiling,
-                                       usage,
-                                       samples,
-                                       flags,
-                                       mip_levels,
-                                       array_layers,
-                                       nullptr,
-                                       0);
-
-        // Allocate memory and bind to image
-        VkMemoryRequirements requirements;
-        vkGetImageMemoryRequirements(_context.device, image, &requirements);
-
-        VirtualMemory memory = allocate_memory(requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        vkBindImageMemory(_context.device, image, memory.memory, memory.key.offset);
-
-        VirtualImage v_image;
-        v_image.image = image;
-        v_image.key = memory.key;
-        v_image.mapped = memory.mapped;
-        return v_image;
-    }
-
-    void MemoryPool::free_buffer(const VirtualBuffer &allocation) {
-        vkDestroyBuffer(_context.device, allocation.buffer, nullptr);
-        Memory &memory = _groups[allocation.key.type][allocation.key.index];
-        memory.allocator.free(allocation.key.offset);
-    }
-
-    void MemoryPool::free_image(const VirtualImage &allocation) {
-        vkDestroyImage(_context.device, allocation.image, nullptr);
+    void MemoryPool::free(const VirtualMemory &allocation) {
         Memory &memory = _groups[allocation.key.type][allocation.key.index];
         memory.allocator.free(allocation.key.offset);
     }

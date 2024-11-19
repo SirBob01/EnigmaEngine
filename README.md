@@ -9,18 +9,8 @@
 ## Features
 
 - Native support for an optimized [ECS](https://en.wikipedia.org/wiki/Entity_component_system) architecture in designing game objects
-- A simplified Scene management system
 - Rendering engine powered by the Vulkan API
 - An audio engine that supports multiple playback tracks and raw PCM data manipulation
-- ... and more!
-
-These features allow it to be used as a framework for general multimedia applications.
-
-For a more in-depth look at the engine's components, visit the [**wiki**](https://github.com/SirBob01/Dynamo-Engine/wiki).
-
-## Rationale
-
-I built this because I've always wanted to understand how game engines worked under the hood. This is mostly a learning exercise, but I also use it for my personal projects because of its flexibility and reusability.
 
 ## Dependencies
 
@@ -44,12 +34,6 @@ Similar to the demos, the tests need to be built. Go to the `/tests/build/` dire
 - `cmake .. -G BUILD_GENERATOR`
 - `make`
 - `ctest --verbose`
-
-## Contributing
-
-Anyone is welcome to open a pull request! State the issue being solved and explain the solution precisely. Just ensure that the new code adheres to the style of the codebase.
-
-For high-level suggestions on improving the engine, open an issue so we can have a discussion.
 
 ## License
 

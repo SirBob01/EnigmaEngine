@@ -2,40 +2,40 @@
 #include <Graphics/Vulkan/Utils.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    MeshRegistry::MeshRegistry(const Context &context, MemoryPool &memory) : _context(context), _memory(memory) {
-        VkCommandBuffer_allocate(_context.device,
-                                 _context.transfer_pool,
-                                 VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                                 &_command_buffer,
-                                 1);
-    }
+    MeshRegistry::MeshRegistry(const Context &context, BufferRegistry &buffers) :
+        _context(context),
+        _buffers(buffers) {}
 
     MeshRegistry::~MeshRegistry() {
         _instances.foreach ([&](MeshInstance &instance) {
-            for (VirtualBuffer &buffer : instance.virtual_buffers) {
-                _memory.free_buffer(buffer);
+            for (Buffer buffer : instance.virtual_buffers) {
+                _buffers.destroy(buffer);
             }
         });
         _instances.clear();
     }
 
-    void MeshRegistry::write_vertices(const void *src, VirtualBuffer &dst, unsigned size) {
+    void MeshRegistry::write_vertices(const void *src, Buffer dst, unsigned size) {
+        BufferDescriptor staging_descriptor;
+        staging_descriptor.size = size;
+        staging_descriptor.usage = BufferUsage::Staging;
+        staging_descriptor.property = MemoryProperty::HostVisible;
+        Buffer staging = _buffers.build(staging_descriptor);
+
+        const BufferInstance &dst_instance = _buffers.get(dst);
+        const BufferInstance &src_instance = _buffers.get(staging);
+        std::memcpy(src_instance.memory.mapped, src, size);
+
         VkBufferCopy region;
         region.srcOffset = 0;
-        region.dstOffset = dst.offset;
+        region.dstOffset = dst_instance.offset;
         region.size = size;
 
-        VirtualBuffer staging =
-            _memory.allocate_buffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                    size);
-        std::memcpy(staging.mapped, src, size);
+        VkCommandBuffer_immediate_start(_context.transfer_command_buffer);
+        vkCmdCopyBuffer(_context.transfer_command_buffer, src_instance.buffer, dst_instance.buffer, 1, &region);
+        VkCommandBuffer_immediate_end(_context.transfer_command_buffer, _context.transfer_queue);
 
-        VkCommandBuffer_immediate_start(_command_buffer);
-        vkCmdCopyBuffer(_command_buffer, staging.buffer, dst.buffer, 1, &region);
-        VkCommandBuffer_immediate_end(_command_buffer, _context.transfer_queue);
-
-        _memory.free_buffer(staging);
+        _buffers.destroy(staging);
     }
 
     Mesh MeshRegistry::build(const MeshDescriptor &descriptor) {
@@ -47,12 +47,15 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Write attributes to the buffers
         for (auto &attribute : descriptor.attributes) {
-            VirtualBuffer vertex =
-                _memory.allocate_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                        attribute.size());
-            instance.attribute_offsets.push_back(vertex.offset);
-            instance.buffers.push_back(vertex.buffer);
+            BufferDescriptor vertex_descriptor;
+            vertex_descriptor.size = attribute.size();
+            vertex_descriptor.usage = BufferUsage::Vertex;
+            vertex_descriptor.property = MemoryProperty::DeviceLocal;
+
+            Buffer vertex = _buffers.build(vertex_descriptor);
+            const BufferInstance &vertex_instance = _buffers.get(vertex);
+            instance.attribute_offsets.push_back(vertex_instance.offset);
+            instance.buffers.push_back(vertex_instance.buffer);
             instance.virtual_buffers.push_back(vertex);
 
             write_vertices(attribute.data(), vertex, attribute.size());
@@ -67,16 +70,19 @@ namespace Dynamo::Graphics::Vulkan {
             for (unsigned index : descriptor.indices) {
                 u16_indices.push_back(index);
             }
-            unsigned size = u16_indices.size() * 2;
-            VirtualBuffer index =
-                _memory.allocate_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                        size);
-            instance.index_buffer = index.buffer;
-            instance.index_offset = index.offset;
+            BufferDescriptor index_descriptor;
+            index_descriptor.size = u16_indices.size() * 2;
+            index_descriptor.usage = BufferUsage::Index;
+            index_descriptor.property = MemoryProperty::DeviceLocal;
+
+            Buffer index = _buffers.build(index_descriptor);
+            const BufferInstance &index_instance = _buffers.get(index);
+
+            instance.index_buffer = index_instance.buffer;
+            instance.index_offset = index_instance.offset;
             instance.virtual_buffers.push_back(index);
 
-            write_vertices(u16_indices.data(), index, size);
+            write_vertices(u16_indices.data(), index, index_descriptor.size);
             break;
         }
         case IndexType::U32: {
@@ -86,16 +92,19 @@ namespace Dynamo::Graphics::Vulkan {
             for (unsigned index : descriptor.indices) {
                 u32_indices.push_back(index);
             }
-            unsigned size = u32_indices.size() * 4;
-            VirtualBuffer index =
-                _memory.allocate_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                        size);
-            instance.index_buffer = index.buffer;
-            instance.index_offset = index.offset;
+            BufferDescriptor index_descriptor;
+            index_descriptor.size = u32_indices.size() * 4;
+            index_descriptor.usage = BufferUsage::Index;
+            index_descriptor.property = MemoryProperty::DeviceLocal;
+
+            Buffer index = _buffers.build(index_descriptor);
+            const BufferInstance &index_instance = _buffers.get(index);
+
+            instance.index_buffer = index_instance.buffer;
+            instance.index_offset = index_instance.offset;
             instance.virtual_buffers.push_back(index);
 
-            write_vertices(u32_indices.data(), index, size);
+            write_vertices(u32_indices.data(), index, index_descriptor.size);
             break;
         }
         case IndexType::None:
@@ -111,8 +120,8 @@ namespace Dynamo::Graphics::Vulkan {
 
     void MeshRegistry::destroy(Mesh mesh) {
         MeshInstance &instance = _instances.get(mesh);
-        for (VirtualBuffer &buffer : instance.virtual_buffers) {
-            _memory.free_buffer(buffer);
+        for (Buffer buffer : instance.virtual_buffers) {
+            _buffers.destroy(buffer);
         }
         _instances.remove(mesh);
     }

@@ -48,4 +48,4 @@
 #include <Utils/RingBuffer.hpp>
 #include <Utils/SparseArray.hpp>
 #include <Utils/ThreadPool.hpp>
-#include <Utils/VirtualMemory.hpp>
+#include <Utils/VirtualBuffer.hpp>

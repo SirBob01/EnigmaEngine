@@ -12,7 +12,7 @@
 #include <Graphics/Vulkan/ShaderRegistry.hpp>
 #include <Graphics/Vulkan/TextureRegistry.hpp>
 #include <Utils/SparseArray.hpp>
-#include <Utils/VirtualMemory.hpp>
+#include <Utils/VirtualBuffer.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
     // Uniform group handle
@@ -27,7 +27,7 @@ namespace Dynamo::Graphics::Vulkan {
 
     struct SharedDescriptor {
         unsigned ref_count;
-        VirtualBuffer buffer;
+        Buffer buffer;
     };
 
     struct SharedPushConstant {
@@ -36,7 +36,7 @@ namespace Dynamo::Graphics::Vulkan {
     };
 
     struct Descriptor {
-        VirtualBuffer buffer;
+        Buffer buffer;
         VkDescriptorType type;
         VkDescriptorSet set;
         unsigned binding;
@@ -69,8 +69,9 @@ namespace Dynamo::Graphics::Vulkan {
     class UniformRegistry {
         const Context &_context;
         MemoryPool &_memory;
+        BufferRegistry &_buffers;
         DescriptorPool &_descriptors;
-        VirtualMemory _push_constant_buffer;
+        VirtualBuffer _push_constant_buffer;
 
         std::unordered_map<std::string, SharedDescriptor> _shared_descriptors;
         std::unordered_map<std::string, SharedPushConstant> _shared_push_constants;
@@ -78,7 +79,7 @@ namespace Dynamo::Graphics::Vulkan {
         SparseArray<UniformGroup, UniformGroupInstance> _groups;
         SparseArray<Uniform, UniformInstance> _uniforms;
 
-        VirtualBuffer allocate_descriptor_binding(VkDescriptorSet set, const DescriptorBinding &binding);
+        Buffer allocate_descriptor_binding(VkDescriptorSet set, const DescriptorBinding &binding);
 
         unsigned allocate_push_constant_range(const PushConstantRange &range);
 
@@ -87,7 +88,10 @@ namespace Dynamo::Graphics::Vulkan {
         void free_group(const UniformGroupInstance &group);
 
       public:
-        UniformRegistry(const Context &context, MemoryPool &memory, DescriptorPool &descriptors);
+        UniformRegistry(const Context &context,
+                        MemoryPool &memory,
+                        BufferRegistry &buffers,
+                        DescriptorPool &descriptors);
         ~UniformRegistry();
 
         UniformGroup build(const std::vector<DescriptorSetLayout> &descriptor_set_layouts,

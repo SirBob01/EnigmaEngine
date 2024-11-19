@@ -22,6 +22,8 @@ namespace Dynamo::Graphics::Vulkan {
         VkQueue compute_queue;
         VkQueue transfer_queue;
 
+        VkCommandBuffer transfer_command_buffer;
+
         Context(const Display &display);
         ~Context();
     };

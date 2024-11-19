@@ -14,27 +14,15 @@ namespace Dynamo::Graphics::Vulkan {
         unsigned index;
     };
 
-    struct VirtualBuffer {
-        VkBuffer buffer;
-        AllocationKey key;
-        unsigned offset;
-        void *mapped;
-    };
-
-    struct VirtualImage {
-        VkImage image;
+    struct VirtualMemory {
+        VkDeviceMemory memory;
         AllocationKey key;
         void *mapped;
     };
 
     class MemoryPool {
-        struct VirtualMemory {
-            VkDeviceMemory memory;
-            AllocationKey key;
-            void *mapped;
-        };
         struct Memory {
-            VkDeviceMemory handle;
+            VkDeviceMemory memory;
             Allocator allocator;
             void *mapped;
         };
@@ -45,27 +33,12 @@ namespace Dynamo::Graphics::Vulkan {
 
         unsigned find_type_index(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) const;
 
-        VirtualMemory allocate_memory(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties);
-
       public:
         MemoryPool(const Context &context);
         ~MemoryPool();
 
-        VirtualBuffer allocate_buffer(VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, unsigned size);
+        VirtualMemory allocate(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties);
 
-        VirtualImage allocate_image(const VkExtent3D &extent,
-                                    VkFormat format,
-                                    VkImageLayout layout,
-                                    VkImageType type,
-                                    VkImageTiling tiling,
-                                    VkImageUsageFlags usage,
-                                    VkSampleCountFlagBits samples,
-                                    VkImageCreateFlags flags,
-                                    unsigned mip_levels,
-                                    unsigned array_layers);
-
-        void free_buffer(const VirtualBuffer &allocation);
-
-        void free_image(const VirtualImage &allocation);
+        void free(const VirtualMemory &allocation);
     };
 }; // namespace Dynamo::Graphics::Vulkan

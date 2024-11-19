@@ -30,11 +30,12 @@ namespace Dynamo::Graphics {
 
         Vulkan::MemoryPool _memory;
         Vulkan::DescriptorPool _descriptors;
+        Vulkan::BufferRegistry _buffers;
+        Vulkan::TextureRegistry _textures;
         Vulkan::MeshRegistry _meshes;
         Vulkan::ShaderRegistry _shaders;
         Vulkan::PipelineRegistry _pipelines;
         Vulkan::UniformRegistry _uniforms;
-        Vulkan::TextureRegistry _textures;
         Vulkan::FrameContextList _frame_contexts;
 
         Texture _color_texture;
@@ -116,6 +117,42 @@ namespace Dynamo::Graphics {
          * @param shader
          */
         void destroy_shader(Shader shader);
+
+        /**
+         * @brief Build a buffer.
+         *
+         * @param descriptor
+         * @return Buffer
+         */
+        Buffer build_buffer(const BufferDescriptor &descriptor);
+
+        /**
+         * @brief Destroy a buffer.
+         *
+         * @param buffer
+         */
+        void destroy_buffer(Buffer buffer);
+
+        /**
+         * @brief Write data to a (host-visible) buffer.
+         *
+         * @param src
+         * @param dst
+         * @param dst_offset
+         * @param length
+         */
+        void write_buffer(void *src, Buffer dst, unsigned dst_offset, unsigned length);
+
+        /**
+         * @brief Copy data between buffers.
+         *
+         * @param src
+         * @param dst
+         * @param src_offset
+         * @param dst_offset
+         * @param length
+         */
+        void copy_buffer(Buffer src, Buffer dst, unsigned src_offset, unsigned dst_offset, unsigned length);
 
         /**
          * @brief Build a texture.
