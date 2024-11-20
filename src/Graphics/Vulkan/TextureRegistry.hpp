@@ -50,7 +50,7 @@ namespace Dynamo::Graphics::Vulkan {
         VkImage image;
         VkImageView view;
         VkSampler sampler;
-        VirtualMemory memory;
+        Allocation allocation;
     };
 
     class TextureRegistry {

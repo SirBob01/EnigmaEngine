@@ -8,7 +8,10 @@
 #include <Utils/Allocator.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    struct AllocationKey {
+    // We only have 4096 guaranteed allocations. 32M * 4096 is over 100GB, so this should be enough.
+    constexpr VkDeviceSize MIN_ALLOCATION_SIZE = 32 * (1 << 20);
+
+    struct Allocation {
         unsigned offset;
         unsigned type;
         unsigned index;
@@ -16,7 +19,7 @@ namespace Dynamo::Graphics::Vulkan {
 
     struct VirtualMemory {
         VkDeviceMemory memory;
-        AllocationKey key;
+        Allocation allocation;
         void *mapped;
     };
 
@@ -39,6 +42,6 @@ namespace Dynamo::Graphics::Vulkan {
 
         VirtualMemory allocate(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties);
 
-        void free(const VirtualMemory &allocation);
+        void free(const Allocation &allocation);
     };
 }; // namespace Dynamo::Graphics::Vulkan

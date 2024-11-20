@@ -3,9 +3,6 @@
 #include <Utils/Log.hpp>
 
 namespace Dynamo::Graphics::Vulkan {
-    // We only have 4096 guaranteed allocations. 32M * 4096 is over 100GB, so this should be enough.
-    constexpr VkDeviceSize MIN_ALLOCATION_SIZE = 32 * (1 << 20);
-
     MemoryPool::MemoryPool(const Context &context) :
         _context(context),
         _groups(_context.physical.memory.memoryTypeCount) {}
@@ -42,20 +39,20 @@ namespace Dynamo::Graphics::Vulkan {
         MemoryGroup &group = _groups[type];
         for (unsigned index = 0; index < group.size(); index++) {
             Memory &memory = group[index];
-            char *base_ptr = static_cast<char *>(memory.mapped);
+            unsigned char *base_ptr = static_cast<unsigned char *>(memory.mapped);
 
             std::optional<unsigned> result = memory.allocator.reserve(requirements.size, requirements.alignment);
             if (result.has_value()) {
-                VirtualMemory allocation;
-                allocation.key.type = type;
-                allocation.key.index = index;
-                allocation.key.offset = result.value();
-                allocation.memory = memory.memory;
-                allocation.mapped = nullptr;
+                VirtualMemory virtual_memory;
+                virtual_memory.allocation.type = type;
+                virtual_memory.allocation.index = index;
+                virtual_memory.allocation.offset = result.value();
+                virtual_memory.memory = memory.memory;
+                virtual_memory.mapped = nullptr;
                 if (base_ptr) {
-                    allocation.mapped = base_ptr + allocation.key.offset;
+                    virtual_memory.mapped = base_ptr + virtual_memory.allocation.offset;
                 }
-                return allocation;
+                return virtual_memory;
             }
         }
 
@@ -68,17 +65,18 @@ namespace Dynamo::Graphics::Vulkan {
         }
         group.push_back({memory, heap_size, mapped});
 
-        VirtualMemory allocation;
-        allocation.key.type = type;
-        allocation.key.index = group.size() - 1;
-        allocation.key.offset = group.back().allocator.reserve(requirements.size, requirements.alignment).value();
-        allocation.memory = memory;
-        allocation.mapped = mapped;
-        return allocation;
+        Allocator &allocator = group.back().allocator;
+        VirtualMemory virtual_memory;
+        virtual_memory.allocation.type = type;
+        virtual_memory.allocation.index = group.size() - 1;
+        virtual_memory.allocation.offset = allocator.reserve(requirements.size, requirements.alignment).value();
+        virtual_memory.memory = memory;
+        virtual_memory.mapped = mapped;
+        return virtual_memory;
     }
 
-    void MemoryPool::free(const VirtualMemory &allocation) {
-        Memory &memory = _groups[allocation.key.type][allocation.key.index];
-        memory.allocator.free(allocation.key.offset);
+    void MemoryPool::free(const Allocation &allocation) {
+        Memory &memory = _groups[allocation.type][allocation.index];
+        memory.allocator.free(allocation.offset);
     }
 } // namespace Dynamo::Graphics::Vulkan

@@ -24,7 +24,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         const BufferInstance &dst_instance = _buffers.get(dst);
         const BufferInstance &src_instance = _buffers.get(staging);
-        std::memcpy(src_instance.memory.mapped, src, size);
+        std::memcpy(src_instance.mapped, src, size);
 
         VkBufferCopy region;
         region.srcOffset = 0;
