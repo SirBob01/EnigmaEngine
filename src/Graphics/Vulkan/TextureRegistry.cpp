@@ -171,9 +171,9 @@ namespace Dynamo::Graphics::Vulkan {
         // Allocate memory and bind to image
         VkMemoryRequirements requirements;
         vkGetImageMemoryRequirements(_context.device, instance.image, &requirements);
-        VirtualMemory virtual_memory = _memory.allocate(requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        vkBindImageMemory(_context.device, instance.image, virtual_memory.memory, virtual_memory.allocation.offset);
-        instance.allocation = virtual_memory.allocation;
+        SubMemory submemory = _memory.allocate(requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        vkBindImageMemory(_context.device, instance.image, submemory.memory, submemory.allocation.offset);
+        instance.allocation = submemory.allocation;
 
         // Copy texels to staging buffer, if any
         if (descriptor.texels.size()) {

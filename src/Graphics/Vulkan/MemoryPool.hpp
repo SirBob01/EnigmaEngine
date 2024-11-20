@@ -11,28 +11,30 @@ namespace Dynamo::Graphics::Vulkan {
     // We only have 4096 guaranteed allocations. 32M * 4096 is over 100GB, so this should be enough.
     constexpr VkDeviceSize MIN_ALLOCATION_SIZE = 32 * (1 << 20);
 
+    // Allocation key
     struct Allocation {
         unsigned offset;
         unsigned type;
         unsigned index;
     };
 
-    struct VirtualMemory {
+    // Suballocated block of memory
+    struct SubMemory {
         VkDeviceMemory memory;
         Allocation allocation;
         void *mapped;
     };
 
-    class MemoryPool {
-        struct Memory {
-            VkDeviceMemory memory;
-            Allocator allocator;
-            void *mapped;
-        };
-        using MemoryGroup = std::vector<Memory>;
+    // Block of allocated device memory
+    struct MainMemory {
+        VkDeviceMemory memory;
+        Allocator allocator;
+        void *mapped;
+    };
 
+    class MemoryPool {
         const Context &_context;
-        std::vector<MemoryGroup> _groups;
+        std::vector<std::vector<MainMemory>> _groups;
 
         unsigned find_type_index(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) const;
 
@@ -40,7 +42,7 @@ namespace Dynamo::Graphics::Vulkan {
         MemoryPool(const Context &context);
         ~MemoryPool();
 
-        VirtualMemory allocate(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties);
+        SubMemory allocate(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties);
 
         void free(const Allocation &allocation);
     };
