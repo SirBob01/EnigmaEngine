@@ -10,13 +10,13 @@
 namespace Dynamo::Graphics::Vulkan {
     struct BufferInstance {
         VkBuffer buffer;
-        unsigned primary_group;
-        unsigned primary_index;
+        unsigned main_group;
+        unsigned main_index;
         unsigned offset;
         void *mapped;
     };
 
-    struct PrimaryBuffer {
+    struct MainBuffer {
         VkBuffer buffer;
         Allocator allocator;
         Allocation allocation;
@@ -27,10 +27,10 @@ namespace Dynamo::Graphics::Vulkan {
         const Context &_context;
         MemoryPool &_memory;
 
-        std::vector<std::vector<PrimaryBuffer>> _groups;
+        std::vector<std::vector<MainBuffer>> _groups;
         SparseArray<Buffer, BufferInstance> _instances;
 
-        PrimaryBuffer build_primary(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+        MainBuffer build_main(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
 
         unsigned find_type_index(BufferUsage usage, MemoryProperty properties);
 

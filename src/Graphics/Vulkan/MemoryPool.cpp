@@ -9,9 +9,9 @@ namespace Dynamo::Graphics::Vulkan {
 
     MemoryPool::~MemoryPool() {
         // Free device memory
-        for (const MemoryGroup &group : _groups) {
-            for (const Memory &memory : group) {
-                vkFreeMemory(_context.device, memory.memory, nullptr);
+        for (const std::vector<MainMemory> &group : _groups) {
+            for (const MainMemory &main : group) {
+                vkFreeMemory(_context.device, main.memory, nullptr);
             }
         }
         _groups.clear();
@@ -33,26 +33,26 @@ namespace Dynamo::Graphics::Vulkan {
         return type_index;
     }
 
-    VirtualMemory MemoryPool::allocate(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) {
+    SubMemory MemoryPool::allocate(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) {
         // Find compatible memory block and suballocate
         unsigned type = find_type_index(requirements, properties);
-        MemoryGroup &group = _groups[type];
+        std::vector<MainMemory> &group = _groups[type];
         for (unsigned index = 0; index < group.size(); index++) {
-            Memory &memory = group[index];
+            MainMemory &memory = group[index];
             unsigned char *base_ptr = static_cast<unsigned char *>(memory.mapped);
 
             std::optional<unsigned> result = memory.allocator.reserve(requirements.size, requirements.alignment);
             if (result.has_value()) {
-                VirtualMemory virtual_memory;
-                virtual_memory.allocation.type = type;
-                virtual_memory.allocation.index = index;
-                virtual_memory.allocation.offset = result.value();
-                virtual_memory.memory = memory.memory;
-                virtual_memory.mapped = nullptr;
+                SubMemory submemory;
+                submemory.allocation.type = type;
+                submemory.allocation.index = index;
+                submemory.allocation.offset = result.value();
+                submemory.memory = memory.memory;
+                submemory.mapped = nullptr;
                 if (base_ptr) {
-                    virtual_memory.mapped = base_ptr + virtual_memory.allocation.offset;
+                    submemory.mapped = base_ptr + submemory.allocation.offset;
                 }
-                return virtual_memory;
+                return submemory;
             }
         }
 
@@ -66,17 +66,17 @@ namespace Dynamo::Graphics::Vulkan {
         group.push_back({memory, heap_size, mapped});
 
         Allocator &allocator = group.back().allocator;
-        VirtualMemory virtual_memory;
-        virtual_memory.allocation.type = type;
-        virtual_memory.allocation.index = group.size() - 1;
-        virtual_memory.allocation.offset = allocator.reserve(requirements.size, requirements.alignment).value();
-        virtual_memory.memory = memory;
-        virtual_memory.mapped = mapped;
-        return virtual_memory;
+        SubMemory submemory;
+        submemory.allocation.type = type;
+        submemory.allocation.index = group.size() - 1;
+        submemory.allocation.offset = allocator.reserve(requirements.size, requirements.alignment).value();
+        submemory.memory = memory;
+        submemory.mapped = mapped;
+        return submemory;
     }
 
     void MemoryPool::free(const Allocation &allocation) {
-        Memory &memory = _groups[allocation.type][allocation.index];
+        MainMemory &memory = _groups[allocation.type][allocation.index];
         memory.allocator.free(allocation.offset);
     }
 } // namespace Dynamo::Graphics::Vulkan
