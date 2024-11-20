@@ -5,12 +5,8 @@ namespace Dynamo::Graphics::Vulkan {
     // Limit of 128 bytes for push constants
     constexpr unsigned PUSH_CONSTANT_HEAP_SIZE = 128;
 
-    UniformRegistry::UniformRegistry(const Context &context,
-                                     MemoryPool &memory,
-                                     BufferRegistry &buffers,
-                                     DescriptorPool &descriptors) :
+    UniformRegistry::UniformRegistry(const Context &context, BufferRegistry &buffers, DescriptorPool &descriptors) :
         _context(context),
-        _memory(memory),
         _buffers(buffers),
         _descriptors(descriptors),
         _push_constant_buffer(PUSH_CONSTANT_HEAP_SIZE) {}
@@ -187,12 +183,12 @@ namespace Dynamo::Graphics::Vulkan {
         switch (var.type) {
         case UniformType::Descriptor: {
             const BufferInstance &buffer_instance = _buffers.get(var.descriptor.buffer);
-            char *dst = static_cast<char *>(buffer_instance.memory.mapped);
+            unsigned char *dst = static_cast<unsigned char *>(buffer_instance.mapped);
             std::memcpy(dst + index * var.descriptor.size, data, var.descriptor.size * count);
             break;
         }
         case UniformType::PushConstant: {
-            char *dst = static_cast<char *>(_push_constant_buffer.mapped(var.push_constant.offset));
+            unsigned char *dst = static_cast<unsigned char *>(_push_constant_buffer.mapped(var.push_constant.offset));
             std::memcpy(dst + index * var.push_constant.size, data, var.push_constant.size * count);
             break;
         }

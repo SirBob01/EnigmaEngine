@@ -14,7 +14,7 @@ namespace Dynamo::Graphics {
         _meshes(_context, _buffers),
         _shaders(_context.device),
         _pipelines(_context, root_asset_directory + "/vulkan_cache.bin"),
-        _uniforms(_context, _memory, _buffers, _descriptors),
+        _uniforms(_context, _buffers, _descriptors),
         _frame_contexts(_context.device, _context.graphics_pool),
         _forwardpass(VkRenderPass_create(_context.device,
                                          _context.physical.samples,
@@ -147,7 +147,7 @@ namespace Dynamo::Graphics {
 
     void Renderer::write_buffer(void *src, Buffer dst, unsigned dst_offset, unsigned length) {
         const BufferInstance &dst_instance = _buffers.get(dst);
-        unsigned char *dst_ptr = static_cast<unsigned char *>(dst_instance.memory.mapped);
+        unsigned char *dst_ptr = static_cast<unsigned char *>(dst_instance.mapped);
         std::memcpy(dst_ptr + dst_offset, src, length);
     }
 

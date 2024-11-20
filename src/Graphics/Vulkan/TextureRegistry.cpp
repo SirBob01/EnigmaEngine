@@ -11,7 +11,7 @@ namespace Dynamo::Graphics::Vulkan {
         _instances.foreach ([&](TextureInstance &instance) {
             vkDestroyImageView(_context.device, instance.view, nullptr);
             vkDestroyImage(_context.device, instance.image, nullptr);
-            _memory.free(instance.memory);
+            _memory.free(instance.allocation);
         });
         _instances.clear();
 
@@ -32,8 +32,8 @@ namespace Dynamo::Graphics::Vulkan {
         staging_descriptor.property = MemoryProperty::HostVisible;
         Buffer staging = _buffers.build(staging_descriptor);
 
-        const BufferInstance &staging_instance = _buffers.get(staging);
-        std::memcpy(staging_instance.memory.mapped, texels.data(), texels.size());
+        const BufferInstance &src_instance = _buffers.get(staging);
+        std::memcpy(src_instance.mapped, texels.data(), texels.size());
 
         // Transition image to optimal layout for buffer copying
         VkCommandBuffer_immediate_start(_context.transfer_command_buffer);
@@ -45,7 +45,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Copy buffer to image
         VkBufferImageCopy region = {};
-        region.bufferOffset = staging_instance.offset;
+        region.bufferOffset = src_instance.offset;
         region.imageSubresource.aspectMask = subresources.aspectMask;
         region.imageSubresource.baseArrayLayer = subresources.baseArrayLayer;
         region.imageSubresource.layerCount = subresources.layerCount;
@@ -56,7 +56,7 @@ namespace Dynamo::Graphics::Vulkan {
         while (region.imageSubresource.mipLevel < subresources.levelCount) {
             // Copy buffer to image
             vkCmdCopyBufferToImage(_context.transfer_command_buffer,
-                                   staging_instance.buffer,
+                                   src_instance.buffer,
                                    image,
                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                    1,
@@ -171,8 +171,9 @@ namespace Dynamo::Graphics::Vulkan {
         // Allocate memory and bind to image
         VkMemoryRequirements requirements;
         vkGetImageMemoryRequirements(_context.device, instance.image, &requirements);
-        instance.memory = _memory.allocate(requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        vkBindImageMemory(_context.device, instance.image, instance.memory.memory, instance.memory.key.offset);
+        VirtualMemory virtual_memory = _memory.allocate(requirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        vkBindImageMemory(_context.device, instance.image, virtual_memory.memory, virtual_memory.allocation.offset);
+        instance.allocation = virtual_memory.allocation;
 
         // Copy texels to staging buffer, if any
         if (descriptor.texels.size()) {
@@ -199,7 +200,7 @@ namespace Dynamo::Graphics::Vulkan {
         const TextureInstance &instance = _instances.get(texture);
         vkDestroyImageView(_context.device, instance.view, nullptr);
         vkDestroyImage(_context.device, instance.image, nullptr);
-        _memory.free(instance.memory);
+        _memory.free(instance.allocation);
         _instances.remove(texture);
     }
 } // namespace Dynamo::Graphics::Vulkan

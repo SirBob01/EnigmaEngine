@@ -68,7 +68,6 @@ namespace Dynamo::Graphics::Vulkan {
 
     class UniformRegistry {
         const Context &_context;
-        MemoryPool &_memory;
         BufferRegistry &_buffers;
         DescriptorPool &_descriptors;
         VirtualBuffer _push_constant_buffer;
@@ -88,10 +87,7 @@ namespace Dynamo::Graphics::Vulkan {
         void free_group(const UniformGroupInstance &group);
 
       public:
-        UniformRegistry(const Context &context,
-                        MemoryPool &memory,
-                        BufferRegistry &buffers,
-                        DescriptorPool &descriptors);
+        UniformRegistry(const Context &context, BufferRegistry &buffers, DescriptorPool &descriptors);
         ~UniformRegistry();
 
         UniformGroup build(const std::vector<DescriptorSetLayout> &descriptor_set_layouts,
