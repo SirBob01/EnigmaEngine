@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include <Graphics/Buffer.hpp>
 #include <Utils/SparseArray.hpp>
 
 namespace Dynamo::Graphics {
@@ -15,10 +16,29 @@ namespace Dynamo::Graphics {
      * @brief Mesh index integer width.
      *
      */
-    enum class IndexType {
+    enum class IndexType : uint8_t {
         None,
+        U8,
         U16,
         U32,
+    };
+
+    /**
+     * @brief Vertex attribute.
+     *
+     */
+    struct VertexAttribute {
+        /**
+         * @brief Device buffer.
+         *
+         */
+        Buffer buffer;
+
+        /**
+         * @brief Offset into the buffer.
+         *
+         */
+        unsigned offset;
     };
 
     /**
@@ -28,68 +48,40 @@ namespace Dynamo::Graphics {
      *
      */
     struct MeshDescriptor {
-        using AttributeBuffer = std::vector<unsigned char>;
+        /**
+         * @brief Vertex attribute buffers.
+         *
+         */
+        std::vector<VertexAttribute> attributes;
 
-        std::vector<AttributeBuffer> attributes;
-        unsigned vertex_count;
-        unsigned instance_count;
+        /**
+         * @brief Index buffer.
+         *
+         */
+        VertexAttribute indices;
 
-        std::vector<unsigned> indices;
+        /**
+         * @brief Index buffer type.
+         *
+         */
         IndexType index_type;
 
         /**
-         * @brief Construct a Mesh Descriptor.
+         * @brief Number of vertices.
          *
-         * @param vertex_count
-         * @param index_type
          */
-        MeshDescriptor(unsigned vertex_count, IndexType index_type) :
-            vertex_count(vertex_count),
-            instance_count(1),
-            index_type(index_type) {}
+        unsigned vertex_count;
 
         /**
-         * @brief Construct an instanced Mesh Descriptor.
+         * @brief Number of instances.
          *
-         * @param vertex_count
-         * @param instance_count
-         * @param index_type
          */
-        MeshDescriptor(unsigned vertex_count, unsigned instance_count, IndexType index_type) :
-            vertex_count(vertex_count),
-            instance_count(instance_count),
-            index_type(index_type) {}
+        unsigned instance_count;
 
         /**
-         * @brief Add a vertex attribute to the mesh.
+         * @brief Number of indices.
          *
-         * @tparam T
-         * @param array
-         * @param count
          */
-        template <typename T>
-        void add_vertex_attribute(const T *array) {
-            attributes.emplace_back();
-            AttributeBuffer &buffer = attributes.back();
-            buffer.resize(vertex_count * sizeof(T));
-            std::copy(array, array + vertex_count, reinterpret_cast<T *>(buffer.data()));
-        }
-
-        /**
-         * @brief Add an instance attribute to the mesh.
-         *
-         * Attribute names should be prefixed with "instance_" in the relevant shader modules.
-         *
-         * @tparam T
-         * @param array
-         * @param count
-         */
-        template <typename T>
-        void add_instance_attribute(const T *array) {
-            attributes.emplace_back();
-            AttributeBuffer &buffer = attributes.back();
-            buffer.resize(instance_count * sizeof(T));
-            std::copy(array, array + instance_count, reinterpret_cast<T *>(buffer.data()));
-        }
+        unsigned index_count;
     };
 } // namespace Dynamo::Graphics

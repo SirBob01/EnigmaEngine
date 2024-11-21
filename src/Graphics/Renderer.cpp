@@ -11,10 +11,10 @@ namespace Dynamo::Graphics {
         _descriptors(_context),
         _buffers(_context, _memory),
         _textures(_context, _memory, _buffers),
-        _meshes(_context, _buffers),
+        _meshes(_buffers),
         _shaders(_context.device),
         _pipelines(_context, root_asset_directory + "/vulkan_cache.bin"),
-        _uniforms(_context, _buffers, _descriptors),
+        _uniforms(_context, _buffers, _textures, _descriptors),
         _frame_contexts(_context.device, _context.graphics_pool),
         _forwardpass(VkRenderPass_create(_context.device,
                                          _context.physical.samples,
@@ -145,7 +145,7 @@ namespace Dynamo::Graphics {
 
     void Renderer::destroy_buffer(Buffer buffer) { _buffers.destroy(buffer); }
 
-    void Renderer::write_buffer(void *src, Buffer dst, unsigned dst_offset, unsigned length) {
+    void Renderer::write_buffer(const void *src, Buffer dst, unsigned dst_offset, unsigned length) {
         const BufferInstance &dst_instance = _buffers.get(dst);
         unsigned char *dst_ptr = static_cast<unsigned char *>(dst_instance.mapped);
         std::memcpy(dst_ptr + dst_offset, src, length);
@@ -193,8 +193,7 @@ namespace Dynamo::Graphics {
     }
 
     void Renderer::bind_texture(Uniform uniform, Texture texture, unsigned index) {
-        const TextureInstance &instance = _textures.get(texture);
-        _uniforms.bind(uniform, instance, index);
+        _uniforms.bind(uniform, texture, index);
     }
 
     void Renderer::draw(const Model &model) { _models.push_back(model); }
@@ -279,8 +278,8 @@ namespace Dynamo::Graphics {
                 prev_mesh = model.mesh;
                 vkCmdBindVertexBuffers(frame.command_buffer,
                                        0,
-                                       mesh.attribute_offsets.size(),
-                                       mesh.buffers.data(),
+                                       mesh.attribute_buffers.size(),
+                                       mesh.attribute_buffers.data(),
                                        mesh.attribute_offsets.data());
                 if (mesh.index_type != VK_INDEX_TYPE_NONE_KHR) {
                     vkCmdBindIndexBuffer(frame.command_buffer, mesh.index_buffer, mesh.index_offset, mesh.index_type);

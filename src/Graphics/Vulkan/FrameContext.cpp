@@ -2,13 +2,13 @@
 
 namespace Dynamo::Graphics::Vulkan {
     FrameContextList::FrameContextList(VkDevice device, VkCommandPool command_pool) : _device(device), _index(0) {
-        std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> buffers;
+        std::array<VkCommandBuffer, MAX_FRAMES_IN_PROCESS> buffers;
         VkCommandBuffer_allocate(device,
                                  command_pool,
                                  VK_COMMAND_BUFFER_LEVEL_PRIMARY,
                                  buffers.data(),
-                                 MAX_FRAMES_IN_FLIGHT);
-        for (unsigned i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+                                 MAX_FRAMES_IN_PROCESS);
+        for (unsigned i = 0; i < MAX_FRAMES_IN_PROCESS; i++) {
             _contexts[i].sync_fence = VkFence_create(device);
             _contexts[i].sync_render_start = VkSemaphore_create(device);
             _contexts[i].sync_render_done = VkSemaphore_create(device);
@@ -26,7 +26,7 @@ namespace Dynamo::Graphics::Vulkan {
 
     const FrameContext &FrameContextList::get() const { return _contexts[_index]; }
 
-    void FrameContextList::advance() { _index = (_index + 1) % MAX_FRAMES_IN_FLIGHT; }
+    void FrameContextList::advance() { _index = (_index + 1) % MAX_FRAMES_IN_PROCESS; }
 
     unsigned FrameContextList::index() const { return _index; }
 } // namespace Dynamo::Graphics::Vulkan

@@ -15,7 +15,7 @@ namespace Dynamo::Graphics {
      * @brief Texture formats.
      *
      */
-    enum class TextureFormat {
+    enum class TextureFormat : uint8_t {
         R16_SFLOAT,
         R32_SFLOAT,
         R8G8B8_UNORM,
@@ -29,7 +29,7 @@ namespace Dynamo::Graphics {
      * @brief Texture usage.
      *
      */
-    enum class TextureUsage {
+    enum class TextureUsage : uint8_t {
         Static,
         Cubemap,
         ColorTarget,
@@ -40,7 +40,7 @@ namespace Dynamo::Graphics {
      * @brief Texture filter modes.
      *
      */
-    enum class TextureFilter {
+    enum class TextureFilter : uint8_t {
         Nearest,
         Linear,
     };
@@ -49,7 +49,7 @@ namespace Dynamo::Graphics {
      * @brief Texture addressing modes.
      *
      */
-    enum class TextureAddressMode {
+    enum class TextureAddressMode : uint8_t {
         Repeat,
         RepeatMirror,
         Clamp,
@@ -61,7 +61,7 @@ namespace Dynamo::Graphics {
      * @brief Texture samples.
      *
      */
-    enum class TextureSamples {
+    enum class TextureSamples : uint8_t {
         S1,
         S2,
         S4,

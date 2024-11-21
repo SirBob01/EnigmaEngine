@@ -48,8 +48,7 @@ namespace Dynamo {
          *
          * @param capacity Capacity of the heap.
          */
-        Allocator(unsigned capacity);
-        Allocator() = default;
+        Allocator(unsigned capacity = 0);
 
         /**
          * @brief Reserve a block of memory with specific alignment

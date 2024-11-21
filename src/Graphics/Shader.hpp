@@ -13,7 +13,7 @@ namespace Dynamo::Graphics {
      * @brief Shader pipeline stage.
      *
      */
-    enum class ShaderStage {
+    enum class ShaderStage : uint8_t {
         Vertex,
         Fragment,
         Compute,

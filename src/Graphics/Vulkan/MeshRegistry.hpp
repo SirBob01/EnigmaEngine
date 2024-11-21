@@ -11,32 +11,28 @@
 
 namespace Dynamo::Graphics::Vulkan {
     struct MeshInstance {
+        std::vector<VkBuffer> attribute_buffers;
         std::vector<VkDeviceSize> attribute_offsets;
-        std::vector<Buffer> virtual_buffers;
-        std::vector<VkBuffer> buffers;
         VkBuffer index_buffer;
-        unsigned index_offset;
+        VkDeviceSize index_offset;
+        VkIndexType index_type;
         unsigned index_count;
         unsigned vertex_count;
         unsigned instance_count;
-        VkIndexType index_type;
     };
 
     class MeshRegistry {
-        const Context &_context;
-        BufferRegistry &_buffers;
+        const BufferRegistry &_buffers;
 
         SparseArray<Mesh, MeshInstance> _instances;
 
-        void write_vertices(const void *src, Buffer dst, unsigned size);
-
       public:
-        MeshRegistry(const Context &context, BufferRegistry &buffers);
+        MeshRegistry(const BufferRegistry &buffers);
         ~MeshRegistry();
 
-        MeshInstance &get(Mesh mesh);
-
         Mesh build(const MeshDescriptor &descriptor);
+
+        MeshInstance &get(Mesh mesh);
 
         void destroy(Mesh mesh);
     };

@@ -48,6 +48,10 @@ namespace Dynamo::Graphics {
         std::vector<Model> _models;
 
         // Important TODO:
+        // * Better Uniform system that supports other descriptor types...
+        //      - How do we double buffer objects for frames in flight??
+        //      - When binding a uniform buffer to descriptor, create separate buffers as the 'working' buffer?
+        //          - Not very good, could lead to heavy fragmentation
         // * Proper render pass system to implement algorithms like Forward+
         //      - Allow creating render passes at the user level
         //      - Users can specify number of color attachments and types
@@ -59,6 +63,10 @@ namespace Dynamo::Graphics {
         // * Customizable color blending (do we really need this?)
         // * Customizable stencil operations
         // * Memory defragmentation stategy
+        // * Effects Algorithms
+        //    * Ambient occlussion (GTAO?)
+        //    * Shadow maps
+        //    * Volumetric particles
 
         void rebuild_framebuffers();
 
@@ -141,7 +149,7 @@ namespace Dynamo::Graphics {
          * @param dst_offset
          * @param length
          */
-        void write_buffer(void *src, Buffer dst, unsigned dst_offset, unsigned length);
+        void write_buffer(const void *src, Buffer dst, unsigned dst_offset, unsigned length);
 
         /**
          * @brief Copy data between buffers.

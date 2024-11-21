@@ -87,26 +87,46 @@ struct Model {
     std::vector<Dynamo::Graphics::Uniform> uniforms;
 };
 
+template <typename T>
+Dynamo::Graphics::Buffer load_static_buffer(Dynamo::Graphics::Renderer &renderer,
+                                            Dynamo::Graphics::BufferUsage usage,
+                                            const T *data,
+                                            unsigned count) {
+    unsigned size = static_cast<unsigned>(count * sizeof(T));
+    Dynamo::Graphics::Buffer staging = renderer.build_buffer({
+        .usage = Dynamo::Graphics::BufferUsage::Staging,
+        .property = Dynamo::Graphics::MemoryProperty::HostVisible,
+        .size = size,
+    });
+    Dynamo::Graphics::Buffer attribute = renderer.build_buffer({
+        .usage = usage,
+        .property = Dynamo::Graphics::MemoryProperty::DeviceLocal,
+        .size = size,
+    });
+
+    renderer.write_buffer(data, staging, 0, size);
+    renderer.copy_buffer(staging, attribute, 0, 0, size);
+    renderer.destroy_buffer(staging);
+
+    return attribute;
+}
+
 Model build_obj_model(Dynamo::Graphics::Renderer &renderer, const std::string filepath) {
-    // Vertex shader
-    Dynamo::Graphics::ShaderDescriptor vertex_shader_descriptor;
-    vertex_shader_descriptor.name = "Vertex";
-    vertex_shader_descriptor.code = MODEL_VERTEX_SHADER;
-    vertex_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Vertex;
-    Dynamo::Graphics::Shader vertex = renderer.build_shader(vertex_shader_descriptor);
-
-    // Fragment shader
-    Dynamo::Graphics::ShaderDescriptor fragment_shader_descriptor;
-    fragment_shader_descriptor.name = "Fragment";
-    fragment_shader_descriptor.code = MODEL_FRAGMENT_SHADER;
-    fragment_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Fragment;
-    Dynamo::Graphics::Shader fragment = renderer.build_shader(fragment_shader_descriptor);
-
-    // Pipeline
-    Dynamo::Graphics::PipelineDescriptor pipeline_descriptor;
-    pipeline_descriptor.vertex = vertex;
-    pipeline_descriptor.fragment = fragment;
-    Dynamo::Graphics::Pipeline pipeline = renderer.build_pipeline(pipeline_descriptor);
+    // Build pipeline
+    Dynamo::Graphics::Shader vertex = renderer.build_shader({
+        .name = "Vertex",
+        .code = MODEL_VERTEX_SHADER,
+        .stage = Dynamo::Graphics::ShaderStage::Vertex,
+    });
+    Dynamo::Graphics::Shader fragment = renderer.build_shader({
+        .name = "Fragment",
+        .code = MODEL_FRAGMENT_SHADER,
+        .stage = Dynamo::Graphics::ShaderStage::Fragment,
+    });
+    Dynamo::Graphics::Pipeline pipeline = renderer.build_pipeline({
+        .vertex = vertex,
+        .fragment = fragment,
+    });
 
     // Build submodels
     Model model;
@@ -114,12 +134,25 @@ Model build_obj_model(Dynamo::Graphics::Renderer &renderer, const std::string fi
         // Skip empty groups or groups with no diffuse texture
         if (group.positions.empty() || group.material.diffuse_filepath.empty()) continue;
 
-        Dynamo::Graphics::MeshDescriptor mesh_descriptor(group.positions.size(), Dynamo::Graphics::IndexType::U32);
-        mesh_descriptor.add_vertex_attribute(group.positions.data());
-        mesh_descriptor.add_vertex_attribute(group.uvs.data());
-        mesh_descriptor.indices = group.indices;
+        Dynamo::Graphics::Buffer positions = load_static_buffer(renderer,
+                                                                Dynamo::Graphics::BufferUsage::Vertex,
+                                                                group.positions.data(),
+                                                                group.positions.size());
+        Dynamo::Graphics::Buffer uvs =
+            load_static_buffer(renderer, Dynamo::Graphics::BufferUsage::Vertex, group.uvs.data(), group.uvs.size());
+        Dynamo::Graphics::Buffer indices = load_static_buffer(renderer,
+                                                              Dynamo::Graphics::BufferUsage::Index,
+                                                              group.indices.data(),
+                                                              group.indices.size());
 
-        Dynamo::Graphics::Mesh mesh = renderer.build_mesh(mesh_descriptor);
+        Dynamo::Graphics::Mesh mesh = renderer.build_mesh({
+            .attributes = {{positions, 0}, {uvs, 0}},
+            .indices = {indices, 0},
+            .index_type = Dynamo::Graphics::IndexType::U32,
+            .vertex_count = static_cast<unsigned>(group.positions.size()),
+            .instance_count = 1,
+            .index_count = static_cast<unsigned>(group.indices.size()),
+        });
         Dynamo::Graphics::UniformGroup uniforms = renderer.build_uniforms(pipeline);
         Dynamo::Graphics::Uniform texture_uniform = renderer.get_uniform(uniforms, "texsampler").value();
 
@@ -142,32 +175,35 @@ Model build_obj_model(Dynamo::Graphics::Renderer &renderer, const std::string fi
 }
 
 Model build_skybox(Dynamo::Graphics::Renderer &renderer) {
-    // Skybox vertex shader
-    Dynamo::Graphics::ShaderDescriptor vertex_shader_descriptor;
-    vertex_shader_descriptor.name = "Cubemap Vertex";
-    vertex_shader_descriptor.code = CUBEMAP_VERTEX_SHADER;
-    vertex_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Vertex;
-    Dynamo::Graphics::Shader vertex = renderer.build_shader(vertex_shader_descriptor);
-
-    // Skybox fragment shader
-    Dynamo::Graphics::ShaderDescriptor fragment_shader_descriptor;
-    fragment_shader_descriptor.name = "Cubemap Fragment";
-    fragment_shader_descriptor.code = CUBEMAP_FRAGMENT_SHADER;
-    fragment_shader_descriptor.stage = Dynamo::Graphics::ShaderStage::Fragment;
-    Dynamo::Graphics::Shader fragment = renderer.build_shader(fragment_shader_descriptor);
-
-    // Skybox pipeline
-    Dynamo::Graphics::PipelineDescriptor pipeline_descriptor;
-    pipeline_descriptor.vertex = vertex;
-    pipeline_descriptor.fragment = fragment;
-    pipeline_descriptor.depth_test_op = Dynamo::Graphics::CompareOp::LessEqual;
-    Dynamo::Graphics::Pipeline pipeline = renderer.build_pipeline(pipeline_descriptor);
+    // Build skybox pipeline
+    Dynamo::Graphics::Shader vertex = renderer.build_shader({
+        .name = "Cubemap Vertex",
+        .code = CUBEMAP_VERTEX_SHADER,
+        .stage = Dynamo::Graphics::ShaderStage::Vertex,
+    });
+    Dynamo::Graphics::Shader fragment = renderer.build_shader({
+        .name = "Cubemap Fragment",
+        .code = CUBEMAP_FRAGMENT_SHADER,
+        .stage = Dynamo::Graphics::ShaderStage::Fragment,
+    });
+    Dynamo::Graphics::Pipeline pipeline = renderer.build_pipeline({
+        .vertex = vertex,
+        .fragment = fragment,
+        .depth_test_op = Dynamo::Graphics::CompareOp::LessEqual,
+    });
     Dynamo::Graphics::UniformGroup uniforms = renderer.build_uniforms(pipeline);
 
-    // Skybox mesh
-    Dynamo::Graphics::MeshDescriptor mesh_descriptor(36, Dynamo::Graphics::IndexType::None);
-    mesh_descriptor.add_vertex_attribute(SKYBOX_GEOM_POSITIONS);
-    Dynamo::Graphics::Mesh mesh = renderer.build_mesh(mesh_descriptor);
+    // Build skybox mesh
+    unsigned vertex_count = sizeof(SKYBOX_GEOM_POSITIONS) / sizeof(SKYBOX_GEOM_POSITIONS[0]);
+    Dynamo::Graphics::Buffer positions =
+        load_static_buffer(renderer, Dynamo::Graphics::BufferUsage::Vertex, SKYBOX_GEOM_POSITIONS, vertex_count);
+    Dynamo::Graphics::Mesh mesh = renderer.build_mesh({
+        .attributes = {{positions, 0}},
+        .index_type = Dynamo::Graphics::IndexType::None,
+        .vertex_count = vertex_count,
+        .instance_count = 1,
+        .index_count = 0,
+    });
 
     // Bind cubemap texture
     Dynamo::Graphics::TextureDescriptor texture_descriptors =
@@ -190,12 +226,12 @@ Model build_skybox(Dynamo::Graphics::Renderer &renderer) {
 }
 
 int main() {
-    Dynamo::ApplicationSettings config;
-    config.title = "Jukebox!";
-    config.window_width = 640;
-    config.window_height = 480;
-    config.root_asset_directory = "../assets/";
-    Dynamo::Application app(config);
+    Dynamo::Application app({
+        .title = "Jukebox!",
+        .window_width = 640,
+        .window_height = 480,
+        .root_asset_directory = "../assets/",
+    });
 
     // --- Models ---
     Model model = build_obj_model(app.renderer(), "../assets/models/sponza/sponza.obj");
@@ -211,6 +247,7 @@ int main() {
 
     float yaw = 135;
     float pitch = -35;
+    float speed = 5;
 
     Dynamo::Vec2 prev_mouse = app.display().get_window_size() / 2;
     while (app.is_running()) {
@@ -225,31 +262,33 @@ int main() {
             app.input().release_mouse();
         }
 
-        float dt = 0.05;
+        // Movement controls
+        float dt = app.clock().delta().count();
         if (app.input().is_pressed(Dynamo::KeyCode::P)) {
             projection_toggle = !projection_toggle;
         }
         if (app.input().is_down(Dynamo::KeyCode::W)) {
-            camera_position += camera_direction * dt;
+            camera_position += camera_direction * dt * speed;
         }
         if (app.input().is_down(Dynamo::KeyCode::S)) {
-            camera_position -= camera_direction * dt;
+            camera_position -= camera_direction * dt * speed;
         }
         if (app.input().is_down(Dynamo::KeyCode::A)) {
             Dynamo::Vec3 camera_right = camera_direction.cross(camera_up);
-            camera_position -= camera_right * dt;
+            camera_position -= camera_right * dt * speed;
         }
         if (app.input().is_down(Dynamo::KeyCode::D)) {
             Dynamo::Vec3 camera_right = camera_direction.cross(camera_up);
-            camera_position += camera_right * dt;
+            camera_position += camera_right * dt * speed;
         }
         if (app.input().is_down(Dynamo::KeyCode::Q)) {
-            camera_position -= camera_up * dt;
+            camera_position -= camera_up * dt * speed;
         }
         if (app.input().is_down(Dynamo::KeyCode::E)) {
-            camera_position += camera_up * dt;
+            camera_position += camera_up * dt * speed;
         }
 
+        // Update camera rotation
         Dynamo::Vec2 mouse_position = app.input().get_mouse_position();
         float xoffset = (mouse_position.x - prev_mouse.x) * 0.1;
         float yoffset = (mouse_position.y - prev_mouse.y) * 0.1;
@@ -265,33 +304,24 @@ int main() {
         camera_direction.z = sin(Dynamo::to_radians(yaw)) * cos(Dynamo::to_radians(pitch));
         camera_direction.normalize();
 
-        unsigned long long frames = app.clock().frames();
-        unsigned update_rate = 64;
-        dt_ave += app.clock().delta().count();
-        if (frames % update_rate == 0) {
-            dt_ave = dt_ave / update_rate;
-            app.display().set_title(std::to_string(dt_ave * 1000) + " ms");
-            dt_ave = 0;
-        }
-
-        Dynamo::Vec2 display_size = app.display().get_window_size();
-        Dynamo::Perspective perspective;
-        perspective.fovy = Dynamo::to_radians(45);
-        perspective.aspect = display_size.x / display_size.y;
-        perspective.znear = 0.1;
-        perspective.zfar = 10000;
-
-        Dynamo::Orthographic orthographic;
-        orthographic.viewport.min = {-1, -1};
-        orthographic.viewport.max = {1, 1};
-        orthographic.znear = 0.1;
-        orthographic.zfar = 10000;
-
-        // Camera projection toggle
+        // Update camera projection
         Dynamo::Camera camera;
         if (projection_toggle) {
+            Dynamo::Vec2 display_size = app.display().get_window_size();
+            Dynamo::Perspective perspective = {
+                .fovy = Dynamo::to_radians(45),
+                .aspect = display_size.x / display_size.y,
+                .znear = 0.1,
+                .zfar = 10000,
+            };
             camera.make(perspective).orient(camera_position, camera_direction, camera_up);
         } else {
+            Dynamo::Orthographic orthographic = {
+                .viewport.min = {-1, -1},
+                .viewport.max = {1, 1},
+                .znear = 0.1,
+                .zfar = 10000,
+            };
             camera.make(orthographic).orient(camera_position, camera_direction, camera_up);
         }
 
@@ -321,6 +351,16 @@ int main() {
         }
         for (const Dynamo::Graphics::Model &group : skybox.groups) {
             app.renderer().draw(group);
+        }
+
+        // Update FPS title
+        unsigned long long frames = app.clock().frames();
+        unsigned update_rate = 64;
+        dt_ave += app.clock().delta().count();
+        if (frames % update_rate == 0) {
+            dt_ave = dt_ave / update_rate;
+            app.display().set_title(std::to_string(dt_ave * 1000) + " ms");
+            dt_ave = 0;
         }
 
         app.update();

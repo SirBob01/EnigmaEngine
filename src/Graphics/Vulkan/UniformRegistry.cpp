@@ -5,9 +5,13 @@ namespace Dynamo::Graphics::Vulkan {
     // Limit of 128 bytes for push constants
     constexpr unsigned PUSH_CONSTANT_HEAP_SIZE = 128;
 
-    UniformRegistry::UniformRegistry(const Context &context, BufferRegistry &buffers, DescriptorPool &descriptors) :
+    UniformRegistry::UniformRegistry(const Context &context,
+                                     BufferRegistry &buffers,
+                                     TextureRegistry &textures,
+                                     DescriptorPool &descriptors) :
         _context(context),
         _buffers(buffers),
+        _textures(textures),
         _descriptors(descriptors),
         _push_constant_buffer(PUSH_CONSTANT_HEAP_SIZE) {}
 
@@ -195,13 +199,14 @@ namespace Dynamo::Graphics::Vulkan {
         }
     }
 
-    void UniformRegistry::bind(Uniform uniform, const TextureInstance &texture, unsigned index) {
+    void UniformRegistry::bind(Uniform uniform, Texture texture, unsigned index) {
         UniformInstance &var = _uniforms.get(uniform);
+        const TextureInstance &instance = _textures.get(texture);
 
         VkDescriptorImageInfo image_info;
-        image_info.imageView = texture.view;
+        image_info.imageView = instance.view;
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.sampler = texture.sampler;
+        image_info.sampler = instance.sampler;
 
         VkWriteDescriptorSet write = {};
         write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
