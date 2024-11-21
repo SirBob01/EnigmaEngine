@@ -17,6 +17,25 @@ namespace Dynamo::Graphics::Vulkan {
         _groups.clear();
     }
 
+    MainMemory MemoryPool::allocate_main(const VkMemoryRequirements &requirements,
+                                         VkMemoryPropertyFlags properties,
+                                         unsigned type_index) const {
+        VkDeviceSize heap_size = std::max(requirements.size, MIN_ALLOCATION_SIZE);
+        VkDeviceMemory memory = VkDeviceMemory_allocate(_context.device, type_index, heap_size);
+
+        void *mapped = nullptr;
+        if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+            VkResult_check("Map Memory", vkMapMemory(_context.device, memory, 0, heap_size, 0, &mapped));
+        }
+
+        MainMemory main;
+        main.memory = memory;
+        main.allocator.grow(heap_size);
+        main.mapped = mapped;
+
+        return main;
+    }
+
     unsigned MemoryPool::find_type_index(const VkMemoryRequirements &requirements,
                                          VkMemoryPropertyFlags properties) const {
         unsigned type_index = 0;
@@ -57,21 +76,15 @@ namespace Dynamo::Graphics::Vulkan {
         }
 
         // None found, build new memory block and suballocate
-        VkDeviceSize heap_size = std::max(requirements.size, MIN_ALLOCATION_SIZE);
-        VkDeviceMemory memory = VkDeviceMemory_allocate(_context.device, type, heap_size);
-        void *mapped = nullptr;
-        if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-            VkResult_check("Map Memory", vkMapMemory(_context.device, memory, 0, heap_size, 0, &mapped));
-        }
-        group.push_back({memory, heap_size, mapped});
+        group.emplace_back(allocate_main(requirements, properties, type));
 
-        Allocator &allocator = group.back().allocator;
+        MainMemory &main = group.back();
         SubMemory submemory;
         submemory.allocation.type = type;
         submemory.allocation.index = group.size() - 1;
-        submemory.allocation.offset = allocator.reserve(requirements.size, requirements.alignment).value();
-        submemory.memory = memory;
-        submemory.mapped = mapped;
+        submemory.allocation.offset = main.allocator.reserve(requirements.size, requirements.alignment).value();
+        submemory.memory = main.memory;
+        submemory.mapped = main.mapped;
         return submemory;
     }
 

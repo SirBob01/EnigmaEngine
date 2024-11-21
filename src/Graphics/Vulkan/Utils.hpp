@@ -6,6 +6,7 @@
 
 #include <Display.hpp>
 #include <Graphics/Buffer.hpp>
+#include <Graphics/Mesh.hpp>
 #include <Graphics/Pipeline.hpp>
 #include <Graphics/Texture.hpp>
 #include <Graphics/Vulkan/PhysicalDevice.hpp>
@@ -53,6 +54,8 @@ namespace Dynamo::Graphics::Vulkan {
     VkBufferUsageFlags convert_buffer_usage(BufferUsage usage);
 
     VkMemoryPropertyFlags convert_memory_property(MemoryProperty property);
+
+    VkIndexType convert_index_type(IndexType type);
 
     VkInstance VkInstance_create(const Display &display);
 

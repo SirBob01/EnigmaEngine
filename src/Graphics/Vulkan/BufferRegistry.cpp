@@ -24,8 +24,12 @@ namespace Dynamo::Graphics::Vulkan {
         _groups.clear();
     }
 
-    MainBuffer
-    BufferRegistry::build_main(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+    MainBuffer BufferRegistry::build_main(const BufferDescriptor &descriptor) {
+        // Create the buffer
+        VkDeviceSize size = std::max(static_cast<VkDeviceSize>(descriptor.size), MIN_ALLOCATION_SIZE);
+        VkBufferUsageFlags usage = convert_buffer_usage(descriptor.usage);
+        VkMemoryPropertyFlags properties = convert_memory_property(descriptor.property);
+
         VkBuffer buffer = VkBuffer_create(_context.device, usage, size, nullptr, 0);
 
         // Allocate memory and bind to buffer
@@ -36,7 +40,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         MainBuffer main;
         main.buffer = buffer;
-        main.allocator = Allocator(size);
+        main.allocator.grow(size);
         main.allocation = submemory.allocation;
         main.mapped = submemory.mapped;
 
@@ -71,10 +75,7 @@ namespace Dynamo::Graphics::Vulkan {
         }
 
         // None found, build new main buffer and suballocate
-        VkDeviceSize size = std::max(static_cast<VkDeviceSize>(descriptor.size), MIN_ALLOCATION_SIZE);
-        VkBufferUsageFlags usage = convert_buffer_usage(descriptor.usage);
-        VkMemoryPropertyFlags properties = convert_memory_property(descriptor.property);
-        group.emplace_back(build_main(size, usage, properties));
+        group.emplace_back(build_main(descriptor));
 
         MainBuffer &main = group.back();
         BufferInstance instance;

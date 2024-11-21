@@ -30,7 +30,7 @@ namespace Dynamo::Graphics::Vulkan {
         std::vector<std::vector<MainBuffer>> _groups;
         SparseArray<Buffer, BufferInstance> _instances;
 
-        MainBuffer build_main(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+        MainBuffer build_main(const BufferDescriptor &descriptor);
 
         unsigned find_type_index(BufferUsage usage, MemoryProperty properties);
 

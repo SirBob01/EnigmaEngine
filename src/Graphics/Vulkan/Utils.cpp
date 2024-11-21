@@ -1,5 +1,6 @@
 #include <Graphics/Vulkan/Utils.hpp>
 #include <fstream>
+#include <vulkan/vulkan_core.h>
 
 static PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebuggerDispatch;
 static PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebuggerDispatch;
@@ -1211,6 +1212,19 @@ namespace Dynamo::Graphics::Vulkan {
             return VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         case MemoryProperty::DeviceLocal:
             return VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        }
+    }
+
+    VkIndexType convert_index_type(IndexType type) {
+        switch (type) {
+        case IndexType::U8:
+            return VK_INDEX_TYPE_UINT8_EXT;
+        case IndexType::U16:
+            return VK_INDEX_TYPE_UINT16;
+        case IndexType::U32:
+            return VK_INDEX_TYPE_UINT32;
+        case IndexType::None:
+            return VK_INDEX_TYPE_NONE_KHR;
         }
     }
 

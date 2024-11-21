@@ -36,6 +36,10 @@ namespace Dynamo::Graphics::Vulkan {
         const Context &_context;
         std::vector<std::vector<MainMemory>> _groups;
 
+        MainMemory allocate_main(const VkMemoryRequirements &requirements,
+                                 VkMemoryPropertyFlags properties,
+                                 unsigned type_index) const;
+
         unsigned find_type_index(const VkMemoryRequirements &requirements, VkMemoryPropertyFlags properties) const;
 
       public:

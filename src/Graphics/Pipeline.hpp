@@ -29,7 +29,7 @@ namespace Dynamo::Graphics {
      * @brief Topology modes.
      *
      */
-    enum class Topology {
+    enum class Topology : uint8_t {
         Point,
         Triangle,
         Line,
@@ -39,7 +39,7 @@ namespace Dynamo::Graphics {
      * @brief Fill modes.
      *
      */
-    enum class Fill {
+    enum class Fill : uint8_t {
         Point,
         Line,
         Face,
@@ -49,7 +49,7 @@ namespace Dynamo::Graphics {
      * @brief Cull modes.
      *
      */
-    enum class Cull {
+    enum class Cull : uint8_t {
         None,
         Back,
         Front,
@@ -59,7 +59,7 @@ namespace Dynamo::Graphics {
      * @brief Comparison operators.
      *
      */
-    enum class CompareOp {
+    enum class CompareOp : uint8_t {
         Always,
         Never,
         Equal,

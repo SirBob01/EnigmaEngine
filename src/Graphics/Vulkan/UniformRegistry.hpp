@@ -20,7 +20,7 @@ namespace Dynamo::Graphics::Vulkan {
 
     // In Vulkan, uniform variables can be from a descriptor or push constant.
     // Renderer API should be able to access both types with the same API.
-    enum class UniformType {
+    enum class UniformType : uint8_t {
         Descriptor,
         PushConstant,
     };
@@ -69,6 +69,7 @@ namespace Dynamo::Graphics::Vulkan {
     class UniformRegistry {
         const Context &_context;
         BufferRegistry &_buffers;
+        TextureRegistry &_textures;
         DescriptorPool &_descriptors;
         VirtualBuffer _push_constant_buffer;
 
@@ -87,7 +88,10 @@ namespace Dynamo::Graphics::Vulkan {
         void free_group(const UniformGroupInstance &group);
 
       public:
-        UniformRegistry(const Context &context, BufferRegistry &buffers, DescriptorPool &descriptors);
+        UniformRegistry(const Context &context,
+                        BufferRegistry &buffers,
+                        TextureRegistry &textures,
+                        DescriptorPool &descriptors);
         ~UniformRegistry();
 
         UniformGroup build(const std::vector<DescriptorSetLayout> &descriptor_set_layouts,
@@ -101,7 +105,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         void write(Uniform uniform, void *data, unsigned index, unsigned count);
 
-        void bind(Uniform uniform, const TextureInstance &texture, unsigned index);
+        void bind(Uniform uniform, Texture texture, unsigned index);
 
         void destroy(UniformGroup group);
     };

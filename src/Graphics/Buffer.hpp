@@ -13,7 +13,7 @@ namespace Dynamo::Graphics {
      * @brief Buffer usage modes.
      *
      */
-    enum class BufferUsage {
+    enum class BufferUsage : uint8_t {
         Vertex,
         Index,
         Uniform,
@@ -25,7 +25,7 @@ namespace Dynamo::Graphics {
      * @brief Buffer memory properties.
      *
      */
-    enum class MemoryProperty {
+    enum class MemoryProperty : uint8_t {
         HostVisible,
         DeviceLocal,
     };
