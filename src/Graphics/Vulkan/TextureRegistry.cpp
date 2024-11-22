@@ -24,6 +24,7 @@ namespace Dynamo::Graphics::Vulkan {
     void TextureRegistry::write_texels(const std::vector<unsigned char> &texels,
                                        VkImage image,
                                        VkFormat format,
+                                       VkImageUsageFlags usage,
                                        const VkExtent3D &extent,
                                        const VkImageSubresourceRange &subresources) {
         BufferDescriptor staging_descriptor;
@@ -71,13 +72,28 @@ namespace Dynamo::Graphics::Vulkan {
             region.imageSubresource.mipLevel++;
         }
 
-        // Transition back to target layout
-        VkImage_transition_layout(
-            image,
-            _context.transfer_command_buffer,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, // TODO: should this depend on the texture usage?
-            subresources);
+        // Transition back to target layout, depending on usage
+        if (usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
+            VkImage_transition_layout(image,
+                                      _context.transfer_command_buffer,
+                                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                      subresources);
+        } else if (usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
+            VkImage_transition_layout(image,
+                                      _context.transfer_command_buffer,
+                                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                      subresources);
+        } else if (usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+            VkImage_transition_layout(image,
+                                      _context.transfer_command_buffer,
+                                      VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                      VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                      subresources);
+        } else {
+            Log::error("Invalid Texture usage, could not perform appropriate layout transition.");
+        }
         VkCommandBuffer_immediate_end(_context.transfer_command_buffer, _context.transfer_queue);
 
         // Destroy the staging buffer
@@ -130,7 +146,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         VkImageType type = descriptor.depth == 1 ? VK_IMAGE_TYPE_2D : VK_IMAGE_TYPE_3D;
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
         VkFormat format =
             convert_texture_format(descriptor.format, swapchain.surface_format, _context.physical.depth_format);
@@ -141,10 +157,12 @@ namespace Dynamo::Graphics::Vulkan {
         // Handle different usage cases
         switch (descriptor.usage) {
         case TextureUsage::Static:
+            usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
             break;
         case TextureUsage::Cubemap:
+            usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+            flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
             subresources.layerCount = 6;
-            flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
             break;
         case TextureUsage::ColorTarget:
             usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -177,7 +195,7 @@ namespace Dynamo::Graphics::Vulkan {
 
         // Copy texels to staging buffer, if any
         if (descriptor.texels.size()) {
-            write_texels(descriptor.texels, instance.image, format, extent, subresources);
+            write_texels(descriptor.texels, instance.image, format, usage, extent, subresources);
         }
 
         // Build image view
