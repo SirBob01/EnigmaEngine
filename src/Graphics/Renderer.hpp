@@ -52,6 +52,10 @@ namespace Dynamo::Graphics {
         //      - How do we double buffer objects for frames in flight??
         //      - When binding a uniform buffer to descriptor, create separate buffers as the 'working' buffer?
         //          - Not very good, could lead to heavy fragmentation
+        //      - Let the user worry about it???
+        //          - User needs to worry about double buffering the uniform data before binding per frame
+        //          - If we do this, we should also abstract over command buffer submission (see EA's presentation)
+        //          - Do this together with render pass system
         // * Proper render pass system to implement algorithms like Forward+
         //      - Allow creating render passes at the user level
         //      - Users can specify number of color attachments and types

@@ -227,7 +227,7 @@ Model build_skybox(Dynamo::Graphics::Renderer &renderer) {
 
 int main() {
     Dynamo::Application app({
-        .title = "Jukebox!",
+        .title = "Sponza",
         .window_width = 640,
         .window_height = 480,
         .root_asset_directory = "../assets/",

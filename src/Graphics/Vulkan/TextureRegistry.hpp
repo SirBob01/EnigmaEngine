@@ -64,6 +64,7 @@ namespace Dynamo::Graphics::Vulkan {
         void write_texels(const std::vector<unsigned char> &texels,
                           VkImage image,
                           VkFormat format,
+                          VkImageUsageFlags usage,
                           const VkExtent3D &extent,
                           const VkImageSubresourceRange &subresources);
 

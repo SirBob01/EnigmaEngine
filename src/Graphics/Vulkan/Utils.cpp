@@ -1,6 +1,5 @@
 #include <Graphics/Vulkan/Utils.hpp>
 #include <fstream>
-#include <vulkan/vulkan_core.h>
 
 static PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebuggerDispatch;
 static PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebuggerDispatch;
@@ -1778,7 +1777,6 @@ namespace Dynamo::Graphics::Vulkan {
         // Color blending
         VkPipelineColorBlendAttachmentState blend_attachment = {};
         blend_attachment.colorWriteMask = color_mask;
-        // TODO: Custom blends
         blend_attachment.blendEnable = VK_TRUE;
         blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
         blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
