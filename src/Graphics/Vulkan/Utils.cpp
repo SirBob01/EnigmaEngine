@@ -1932,6 +1932,21 @@ namespace Dynamo::Graphics::Vulkan {
         VkResult_check("Submit command buffer", vkQueueSubmit(queue, 1, &submit_info, fence));
     }
 
+    bool VkDevice_next_image(VkDevice device,
+                             VkSwapchainKHR swapchain,
+                             VkSemaphore signal_semaphore,
+                             VkFence signal_fence,
+                             unsigned *image_index) {
+        VkResult result =
+            vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, signal_semaphore, signal_fence, image_index);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            return false;
+        } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+            VkResult_check("Acquire Image", result);
+        }
+        return true;
+    }
+
     bool VkQueue_present(VkQueue queue,
                          unsigned wait_semaphore_count,
                          const VkSemaphore *wait_semaphores,
@@ -1948,11 +1963,11 @@ namespace Dynamo::Graphics::Vulkan {
 
         VkResult result = vkQueuePresentKHR(queue, &present_info);
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
-            return true;
+            return false;
         } else if (result != VK_SUCCESS) {
             VkResult_check("Present Render", result);
         }
-        return false;
+        return true;
     }
 
     VkFence VkFence_create(VkDevice device) {

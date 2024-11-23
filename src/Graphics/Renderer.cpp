@@ -211,17 +211,12 @@ namespace Dynamo::Graphics {
         vkWaitForFences(_context.device, 1, &frame.sync_fence, VK_TRUE, UINT64_MAX);
 
         unsigned image_index;
-        VkResult acquire_result = vkAcquireNextImageKHR(_context.device,
-                                                        _swapchain.handle,
-                                                        UINT64_MAX,
-                                                        frame.sync_render_start,
-                                                        VK_NULL_HANDLE,
-                                                        &image_index);
-        if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR) {
+        if (!VkDevice_next_image(_context.device,
+                                 _swapchain.handle,
+                                 frame.sync_render_start,
+                                 VK_NULL_HANDLE,
+                                 &image_index)) {
             rebuild_swapchain();
-            return;
-        } else if (acquire_result != VK_SUCCESS && acquire_result != VK_SUBOPTIMAL_KHR) {
-            VkResult_check("Acquire Image", acquire_result);
         }
 
         VkResult_check("Reset Fence", vkResetFences(_context.device, 1, &frame.sync_fence));
@@ -337,7 +332,7 @@ namespace Dynamo::Graphics {
                             frame.sync_fence);
 
         // Present the render
-        if (VkQueue_present(_context.present_queue, 1, &frame.sync_render_done, 1, &_swapchain.handle, &image_index)) {
+        if (!VkQueue_present(_context.present_queue, 1, &frame.sync_render_done, 1, &_swapchain.handle, &image_index)) {
             rebuild_swapchain();
         }
         _frame_contexts.advance();
