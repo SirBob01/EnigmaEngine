@@ -171,9 +171,16 @@ namespace Dynamo::Graphics::Vulkan {
                                   VkDescriptorSet *dst,
                                   unsigned count);
 
-    void VkCommandBuffer_immediate_start(VkCommandBuffer command_buffer);
+    void VkCommandBuffer_begin(VkCommandBuffer command_buffer, VkCommandBufferUsageFlags flags);
 
-    void VkCommandBuffer_immediate_end(VkCommandBuffer command_buffer, VkQueue queue);
+    void VkCommandBuffer_end(VkCommandBuffer command_buffer,
+                             VkQueue queue,
+                             unsigned wait_semaphore_count,
+                             const VkSemaphore *wait_semaphores,
+                             const VkPipelineStageFlags *wait_stages,
+                             unsigned signal_semaphore_count,
+                             const VkSemaphore *signal_semaphores,
+                             VkFence fence);
 
     VkFence VkFence_create(VkDevice device);
 

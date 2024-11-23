@@ -37,7 +37,7 @@ namespace Dynamo::Graphics::Vulkan {
         std::memcpy(src_instance.mapped, texels.data(), texels.size());
 
         // Transition image to optimal layout for buffer copying
-        VkCommandBuffer_immediate_start(_context.transfer_command_buffer);
+        VkCommandBuffer_begin(_context.transfer_command_buffer, 0);
         VkImage_transition_layout(image,
                                   _context.transfer_command_buffer,
                                   VK_IMAGE_LAYOUT_UNDEFINED,
@@ -94,7 +94,15 @@ namespace Dynamo::Graphics::Vulkan {
         } else {
             Log::error("Invalid Texture usage, could not perform appropriate layout transition.");
         }
-        VkCommandBuffer_immediate_end(_context.transfer_command_buffer, _context.transfer_queue);
+        VkCommandBuffer_end(_context.transfer_command_buffer,
+                            _context.transfer_queue,
+                            0,
+                            nullptr,
+                            nullptr,
+                            0,
+                            nullptr,
+                            VK_NULL_HANDLE);
+        vkQueueWaitIdle(_context.transfer_queue);
 
         // Destroy the staging buffer
         _buffers.destroy(staging);

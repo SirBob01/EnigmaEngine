@@ -160,9 +160,17 @@ namespace Dynamo::Graphics {
         region.dstOffset = dst_instance.offset + dst_offset;
         region.size = length;
 
-        VkCommandBuffer_immediate_start(_context.transfer_command_buffer);
+        VkCommandBuffer_begin(_context.transfer_command_buffer, 0);
         vkCmdCopyBuffer(_context.transfer_command_buffer, src_instance.buffer, dst_instance.buffer, 1, &region);
-        VkCommandBuffer_immediate_end(_context.transfer_command_buffer, _context.transfer_queue);
+        VkCommandBuffer_end(_context.transfer_command_buffer,
+                            _context.transfer_queue,
+                            0,
+                            nullptr,
+                            nullptr,
+                            0,
+                            nullptr,
+                            VK_NULL_HANDLE);
+        vkQueueWaitIdle(_context.transfer_queue);
     }
 
     Texture Renderer::build_texture(const TextureDescriptor &descriptor) {
@@ -218,13 +226,7 @@ namespace Dynamo::Graphics {
 
         VkResult_check("Reset Fence", vkResetFences(_context.device, 1, &frame.sync_fence));
         VkResult_check("Reset Command Buffer", vkResetCommandBuffer(frame.command_buffer, 0));
-
-        VkCommandBufferBeginInfo begin_info = {};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = 0;
-        begin_info.pInheritanceInfo = nullptr;
-
-        VkResult_check("Begin Command Recording", vkBeginCommandBuffer(frame.command_buffer, &begin_info));
+        VkCommandBuffer_begin(frame.command_buffer, 0);
 
         // Sort models by group, then pipeline, then geometry
         std::sort(_models.begin(), _models.end(), [](const Model &a, const Model &b) {
@@ -322,24 +324,17 @@ namespace Dynamo::Graphics {
 
         // End renderpass
         vkCmdEndRenderPass(frame.command_buffer);
-        VkResult_check("End Command Buffer", vkEndCommandBuffer(frame.command_buffer));
 
         // Submit commands
-        VkQueue queue;
-        vkGetDeviceQueue(_context.device, _context.physical.graphics_queues.index, 0, &queue);
-
-        VkSubmitInfo submit_info = {};
         VkPipelineStageFlags wait_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &frame.command_buffer;
-        submit_info.waitSemaphoreCount = 1;
-        submit_info.pWaitSemaphores = &frame.sync_render_start;
-        submit_info.signalSemaphoreCount = 1;
-        submit_info.pSignalSemaphores = &frame.sync_render_done;
-        submit_info.pWaitDstStageMask = &wait_stage_mask;
-
-        VkResult_check("Graphics Submit", vkQueueSubmit(queue, 1, &submit_info, frame.sync_fence));
+        VkCommandBuffer_end(frame.command_buffer,
+                            _context.graphics_queue,
+                            1,
+                            &frame.sync_render_start,
+                            &wait_stage_mask,
+                            1,
+                            &frame.sync_render_done,
+                            frame.sync_fence);
 
         // Present the render
         VkPresentInfoKHR present_info = {};
@@ -351,7 +346,7 @@ namespace Dynamo::Graphics {
         present_info.pImageIndices = &image_index;
         present_info.pResults = nullptr;
 
-        VkResult present_result = vkQueuePresentKHR(queue, &present_info);
+        VkResult present_result = vkQueuePresentKHR(_context.present_queue, &present_info);
 
         if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
             rebuild_swapchain();

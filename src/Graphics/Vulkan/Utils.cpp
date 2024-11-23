@@ -1901,24 +1901,35 @@ namespace Dynamo::Graphics::Vulkan {
         VkResult_check("Allocate Descriptor Sets", vkAllocateDescriptorSets(device, &alloc_info, dst));
     }
 
-    void VkCommandBuffer_immediate_start(VkCommandBuffer command_buffer) {
+    void VkCommandBuffer_begin(VkCommandBuffer command_buffer, VkCommandBufferUsageFlags flags) {
         VkCommandBufferBeginInfo begin_info = {};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        begin_info.flags = flags;
 
-        vkBeginCommandBuffer(command_buffer, &begin_info);
+        VkResult_check("Begin command recording", vkBeginCommandBuffer(command_buffer, &begin_info));
     }
 
-    void VkCommandBuffer_immediate_end(VkCommandBuffer command_buffer, VkQueue queue) {
-        // Submit the command to the queue
+    void VkCommandBuffer_end(VkCommandBuffer command_buffer,
+                             VkQueue queue,
+                             unsigned wait_semaphore_count,
+                             const VkSemaphore *wait_semaphores,
+                             const VkPipelineStageFlags *wait_stages,
+                             unsigned signal_semaphore_count,
+                             const VkSemaphore *signal_semaphores,
+                             VkFence fence) {
+        // Submit the command buffer to the queue
         VkSubmitInfo submit_info = {};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &command_buffer;
+        submit_info.waitSemaphoreCount = wait_semaphore_count;
+        submit_info.pWaitSemaphores = wait_semaphores;
+        submit_info.pWaitDstStageMask = wait_stages;
+        submit_info.signalSemaphoreCount = signal_semaphore_count;
+        submit_info.pSignalSemaphores = signal_semaphores;
 
-        vkEndCommandBuffer(command_buffer);
-        vkQueueSubmit(queue, 1, &submit_info, VK_NULL_HANDLE);
-        vkQueueWaitIdle(queue);
+        VkResult_check("End command recording", vkEndCommandBuffer(command_buffer));
+        VkResult_check("Submit command buffer", vkQueueSubmit(queue, 1, &submit_info, fence));
     }
 
     VkFence VkFence_create(VkDevice device) {
