@@ -1932,6 +1932,29 @@ namespace Dynamo::Graphics::Vulkan {
         VkResult_check("Submit command buffer", vkQueueSubmit(queue, 1, &submit_info, fence));
     }
 
+    bool VkQueue_present(VkQueue queue,
+                         unsigned wait_semaphore_count,
+                         const VkSemaphore *wait_semaphores,
+                         unsigned swapchain_count,
+                         const VkSwapchainKHR *swapchains,
+                         const unsigned *image_indices) {
+        VkPresentInfoKHR present_info = {};
+        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        present_info.waitSemaphoreCount = wait_semaphore_count;
+        present_info.pWaitSemaphores = wait_semaphores;
+        present_info.swapchainCount = swapchain_count;
+        present_info.pSwapchains = swapchains;
+        present_info.pImageIndices = image_indices;
+
+        VkResult result = vkQueuePresentKHR(queue, &present_info);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+            return true;
+        } else if (result != VK_SUCCESS) {
+            VkResult_check("Present Render", result);
+        }
+        return false;
+    }
+
     VkFence VkFence_create(VkDevice device) {
         VkFenceCreateInfo fence_info = {};
         fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

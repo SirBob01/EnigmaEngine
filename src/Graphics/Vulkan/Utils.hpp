@@ -182,6 +182,13 @@ namespace Dynamo::Graphics::Vulkan {
                              const VkSemaphore *signal_semaphores,
                              VkFence fence);
 
+    bool VkQueue_present(VkQueue queue,
+                         unsigned wait_semaphore_count,
+                         const VkSemaphore *wait_semaphores,
+                         unsigned swapchain_count,
+                         const VkSwapchainKHR *swapchains,
+                         const unsigned *image_indices);
+
     VkFence VkFence_create(VkDevice device);
 
     VkSemaphore VkSemaphore_create(VkDevice device);

@@ -337,21 +337,8 @@ namespace Dynamo::Graphics {
                             frame.sync_fence);
 
         // Present the render
-        VkPresentInfoKHR present_info = {};
-        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &frame.sync_render_done;
-        present_info.swapchainCount = 1;
-        present_info.pSwapchains = &_swapchain.handle;
-        present_info.pImageIndices = &image_index;
-        present_info.pResults = nullptr;
-
-        VkResult present_result = vkQueuePresentKHR(_context.present_queue, &present_info);
-
-        if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
+        if (VkQueue_present(_context.present_queue, 1, &frame.sync_render_done, 1, &_swapchain.handle, &image_index)) {
             rebuild_swapchain();
-        } else if (present_result != VK_SUCCESS) {
-            VkResult_check("Present Render", present_result);
         }
         _frame_contexts.advance();
     }
